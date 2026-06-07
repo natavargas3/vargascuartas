@@ -82,6 +82,7 @@ html,body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;
 
 /* INPUTS */
 input,select,textarea{background:var(--s2);border:1px solid var(--b2);border-radius:var(--rx);padding:12px 14px;color:var(--t1);font-size:15px;font-family:'DM Sans',sans-serif;width:100%;transition:border-color .15s;-webkit-appearance:none;appearance:none}
+input[type=checkbox]{width:16px!important;height:16px!important;padding:2px!important;background:var(--s3)!important;border-radius:3px!important;-webkit-appearance:checkbox!important;appearance:checkbox!important;accent-color:var(--accent);flex-shrink:0;cursor:pointer}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 input[type=file]{display:none}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c5a57' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
@@ -578,8 +579,9 @@ onValue(dbRef,snap=>{
     if(!S.casaPagos)S.casaPagos=[];
     if(!S.reportes)S.reportes={};
     if(!S.saldos)S.saldos={};
-    // Add prestamos cat if missing
-    if(!S.cats.find(c=>c.isPrestamos))S.cats.push({id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]});
+    // Add prestamos cat if missing, fix isPrestamos flag
+    S.cats.forEach(c=>{if(c.id==='prestamos')c.isPrestamos=true;});
+    if(!S.cats.find(c=>c.id==='prestamos'))S.cats.push({id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
     S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
@@ -659,12 +661,14 @@ function computeBalance(rep){
   (S.cats||[]).forEach(cat=>{
     if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
     if(cat.isPrestamos){
-      // Prestamos: each entry is 100% owed to whoever lent
       (cat.items||[]).forEach(item=>{
         const paid=getPaidFromRep(item.id,rep);
-        // split tells us who lent: nata=Nata lent to Santi, santi=Santi lent to Nata
-        if(item.split==='nata'&&paid.nata>0)santiDebeANata+=paid.nata;
-        if(item.split==='santi'&&paid.santi>0)nataDebeASanti+=paid.santi;
+        // split='nata' means Nata lent → Santiago owes Nata
+        // split='santi' means Santiago lent → Nata owes Santiago
+        paid.entries.forEach(e=>{
+          if(e.quien==='Nata')santiDebeANata+=e.monto;
+          else nataDebeASanti+=e.monto;
+        });
         natPaid+=paid.nata;sanPaid+=paid.santi;
       });
       return;
@@ -680,7 +684,7 @@ function computeBalance(rep){
     });
   });
   const net=santiDebeANata-nataDebeASanti;
-  return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net};
+  return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net,santiDebeANata,nataDebeASanti};
 }
 
 function allItems(){return(S.cats||[]).flatMap(c=>c.items||[]);}
@@ -1442,12 +1446,15 @@ window.delBol=function(i){if(confirm('¿Eliminar bolsillo?')){S.bolsillos.splice
 let modalCatIdx=-1;
 window.openModal=function(ci){
   modalCatIdx=ci;const cat=S.cats[ci];
+  if(!cat)return;
   document.getElementById('modal-ttl').textContent=`Agregar a ${cat.name}`;
   const isPers=cat.id==='nata-personal'||cat.id==='santi-personal';
-  document.getElementById('m-sw').style.display=isPers?'none':'block';
+  const isPrest=cat.isPrestamos||cat.id==='prestamos';
+  document.getElementById('m-sw').style.display=(isPers||isPrest)?'none':'block';
   if(cat.id==='nata-personal')document.getElementById('m-split').value='nata';
   else if(cat.id==='santi-personal')document.getElementById('m-split').value='santi';
   else if(cat.id==='homeschool')document.getElementById('m-split').value='70-30';
+  else if(cat.defaultSplit)document.getElementById('m-split').value=cat.defaultSplit;
   else document.getElementById('m-split').value='50-50';
   document.getElementById('m-n').value='';document.getElementById('m-m').value='';
   document.getElementById('modal-bg').classList.add('open');
