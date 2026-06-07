@@ -535,6 +535,7 @@ const DEFAULT={
       {id:62,name:'Prepagada niñas',budget:600000,split:'santi'},{id:63,name:'Seguridad social',budget:500000,split:'santi'},
       {id:64,name:'Gastos variables',budget:250000,split:'santi'},{id:65,name:'Claro',budget:70000,split:'santi'},
     ]},
+    {id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]},
   ],
   bolsillos:[
     {id:1,name:'Viaje internacional ✈',metaMensual:3000000,acumulado:0,color:'accent',log:[],manual:true},
@@ -577,17 +578,19 @@ onValue(dbRef,snap=>{
     if(!S.casaPagos)S.casaPagos=[];
     if(!S.reportes)S.reportes={};
     if(!S.saldos)S.saldos={};
+    // Add prestamos cat if missing
+    if(!S.cats.find(c=>c.isPrestamos))S.cats.push({id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
     S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
     if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
     if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
-    if(S.dashMonth===undefined){S.dashMonth=S.currentMonth;S.dashYear=S.currentYear;}
+    if(localDashMonth===undefined){localDashMonth=localRepMonth;localDashYear=localRepYear;}
     // Always open on current month
-    S.dashMonth=new Date().getMonth();
-    S.dashYear=new Date().getFullYear();
-    S.currentMonth=new Date().getMonth();
-    S.currentYear=new Date().getFullYear();
+    localDashMonth=new Date().getMonth();
+    localDashYear=new Date().getFullYear();
+    localRepMonth=new Date().getMonth();
+    localRepYear=new Date().getFullYear();
     // migrate China name
     (S.bolsillos||[]).forEach(b=>{if(b.name==='China ✈')b.name='Viaje internacional ✈';});
     currentFilter=S.dashFilter||'mes';
@@ -614,8 +617,8 @@ const pct=(a,b)=>b>0?Math.min(100,Math.round(a/b*100)):0;
 const trm=()=>S.trm||4200;
 const natIng=()=>S.nataUSD*trm()-2000000;
 const sanIng=()=>S.santiUSD*trm()+2000000;
-const repKey=()=>`${S.currentYear}-${S.currentMonth}`;
-const dashKey=()=>`${S.dashYear}-${S.dashMonth}`;
+const repKey=()=>`${localRepYear}-${localRepMonth}`;
+const dashKey=()=>`${localDashYear}-${localDashMonth}`;
 const getRep=()=>{const k=repKey();if(!S.reportes)S.reportes={};if(!S.reportes[k])S.reportes[k]={items:{},closed:false};return S.reportes[k];};
 const getDashRep=()=>{const k=dashKey();if(!S.reportes||!S.reportes[k])return{items:{},closed:false};return S.reportes[k];};
 
@@ -655,6 +658,17 @@ function computeBalance(rep){
   let santiDebeANata=0,nataDebeASanti=0,natPaid=0,sanPaid=0,natItems=0,sanItems=0,natPaidItems=0,sanPaidItems=0;
   (S.cats||[]).forEach(cat=>{
     if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
+    if(cat.isPrestamos){
+      // Prestamos: each entry is 100% owed to whoever lent
+      (cat.items||[]).forEach(item=>{
+        const paid=getPaidFromRep(item.id,rep);
+        // split tells us who lent: nata=Nata lent to Santi, santi=Santi lent to Nata
+        if(item.split==='nata'&&paid.nata>0)santiDebeANata+=paid.nata;
+        if(item.split==='santi'&&paid.santi>0)nataDebeASanti+=paid.santi;
+        natPaid+=paid.nata;sanPaid+=paid.santi;
+      });
+      return;
+    }
     (cat.items||[]).forEach(item=>{
       const sp=getSplit(item);
       if(sp.nata>0)natItems++;if(sp.santi>0)sanItems++;
@@ -687,17 +701,23 @@ window.showPage=function(p,btn){
   document.getElementById('mscroll').scrollTop=0;
   renderAll();applyInputs();
 };
+// Local month state — NOT saved to Firebase to avoid reset bug
+let localDashMonth=new Date().getMonth();
+let localDashYear=new Date().getFullYear();
+let localRepMonth=new Date().getMonth();
+let localRepYear=new Date().getFullYear();
+
 window.chM=function(dir){
-  S.currentMonth+=dir;
-  if(S.currentMonth>11){S.currentMonth=0;S.currentYear++;}
-  if(S.currentMonth<0){S.currentMonth=11;S.currentYear--;}
-  syncR();
+  localRepMonth+=dir;
+  if(localRepMonth>11){localRepMonth=0;localRepYear++;}
+  if(localRepMonth<0){localRepMonth=11;localRepYear--;}
+  renderReporte();
 };
 window.chDM=function(dir){
-  S.dashMonth+=dir;
-  if(S.dashMonth>11){S.dashMonth=0;S.dashYear++;}
-  if(S.dashMonth<0){S.dashMonth=11;S.dashYear--;}
-  syncR();
+  localDashMonth+=dir;
+  if(localDashMonth>11){localDashMonth=0;localDashYear++;}
+  if(localDashMonth<0){localDashMonth=11;localDashYear--;}
+  renderDashboard();
 };
 
 function bar(v,max,cls='ba'){const p=pct(v,max);return`<div class="bar"><div class="bar-f ${cls}" style="width:${p}%"></div></div>`;}
@@ -726,7 +746,7 @@ window.handlePhoto=async function(inputId,labelId,urlId){
 // DASHBOARD
 function renderDashboard(){
   const dashRep=getDashRep();
-  document.getElementById('dml').textContent=`${MONTHS[S.dashMonth]} ${S.dashYear}`;
+  document.getElementById('dml').textContent=`${MONTHS[localDashMonth]} ${localDashYear}`;
   const months=getFilterMonths();
   // aggregate across filter period
   let totBudget=0,totPaid=0;
@@ -748,7 +768,7 @@ function renderDashboard(){
 
   // BALANCE (always current month)
   const bal=computeBalance(dashRep);
-  const mkkey=`${S.dashYear}-${S.dashMonth}`;
+  const mkkey=`${localDashYear}-${localDashMonth}`;
   const saldado=S.saldos&&S.saldos[mkkey];
   const anyPaid=bal.natPaid>0||bal.sanPaid>0;
   let heroMsg='',heroCls='bal-none';
@@ -761,7 +781,7 @@ function renderDashboard(){
 
   document.getElementById('dash-balance-hero').innerHTML=`
     <div class="bal-hero">
-      <div class="bal-ttl">balance de aportes · ${MONTHS[S.dashMonth]}</div>
+      <div class="bal-ttl">balance de aportes · ${MONTHS[localDashMonth]}</div>
       <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}</div>
       ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
       <div class="bal-col">
@@ -895,26 +915,35 @@ window.toggleItemDetail=function(id){
   el.classList.toggle('open',!wasOpen);
 };
 window.marcarSaldado=function(){
-  const key=`${S.dashYear}-${S.dashMonth}`;
+  const key=`${localDashYear}-${localDashMonth}`;
   if(!S.saldos)S.saldos={};
   S.saldos[key]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
   syncR();
 };
 window.desmarcarSaldado=function(){
-  const key=`${S.dashYear}-${S.dashMonth}`;
+  const key=`${localDashYear}-${localDashMonth}`;
   if(S.saldos&&S.saldos[key])delete S.saldos[key];
   syncR();
 };
 
 // REPORTE
 function renderReporte(){
-  document.getElementById('mlabel').textContent=`${MONTHS[S.currentMonth]} ${S.currentYear}`;
-  let totalBudget=0,totalPaid=0,excTotal=0,nPaid=0,nTotal=0;
-  (S.cats||[]).forEach(cat=>(cat.items||[]).forEach(item=>{
-    nTotal++;totalBudget+=item.budget;
-    const paid=getItemPaid(item.id);
-    if(paid.entries.length>0){nPaid++;totalPaid+=paid.total;excTotal+=item.budget-paid.total;}
-  }));
+  document.getElementById('mlabel').textContent=`${MONTHS[localRepMonth]} ${localRepYear}`;
+  let totalBudget=0,totalPaid=0,excTotal=0;
+  (S.cats||[]).forEach(cat=>{
+    if(cat.isPrestamos)return;
+    (cat.items||[]).forEach(item=>{
+      // Annual items: only count budget/paid in the month they were paid
+      if(item.anual){
+        const paid=getItemPaid(item.id);
+        if(paid.entries.length>0){totalPaid+=paid.total;excTotal+=item.budget-paid.total;}
+        return;
+      }
+      totalBudget+=item.budget;
+      const paid=getItemPaid(item.id);
+      if(paid.entries.length>0){totalPaid+=paid.total;excTotal+=item.budget-paid.total;}
+    });
+  });
   document.getElementById('rep-metrics').innerHTML=`
     <div class="met"><div class="met-l">pagado</div><div class="met-v" style="color:var(--accent);font-size:18px">${fmtM(totalPaid)}</div></div>
     <div class="met"><div class="met-l">pendiente</div><div class="met-v" style="color:var(--amber);font-size:18px">${fmtM(totalBudget-totalPaid)}</div></div>
@@ -923,15 +952,82 @@ function renderReporte(){
   let html='';
   (S.cats||[]).forEach(cat=>{
     const isNata=cat.id==='nata-personal',isSanti=cat.id==='santi-personal';
+    const isPrestamos=cat.isPrestamos||false;
     let catBudget=0,catPaid=0;
+
+    // PRESTAMOS — special render
+    if(isPrestamos){
+      const prestHtml=(cat.items||[]).length===0?'<div class="empty">Sin préstamos registrados</div>':(cat.items||[]).map(item=>{
+        const paid=getItemPaid(item.id);
+        const hasPaid=paid.entries.length>0;
+        const quien=item.split==='nata'?'Nata':'Santiago';
+        const debedor=item.split==='nata'?'Santiago':'Nata';
+        const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
+          <div class="entry-item">
+            <div class="entry-top">
+              <div><div style="font-size:14px;font-weight:500">${fmt(e.monto)}</div><div style="font-size:12px;color:var(--t3)">${e.nota||'—'}</div></div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <span class="bdg ${e.quien==='Nata'?'bn':'bs'}">${e.quien} prestó</span>
+                <button class="btn-danger" onclick="removeEntry(${item.id},${ei})">× eliminar</button>
+              </div>
+            </div>
+            <div class="entry-meta"><span style="font-size:11px;color:var(--t3)">${e.fecha||''}</span></div>
+          </div>`).join('')}</div>`:'';
+        return`<div class="rep-item">
+          <div class="rep-main" onclick="toggleD('rd-${item.id}')">
+            <div class="chk ${hasPaid?'paid':''}"></div>
+            <div>
+              <div style="font-size:15px">${item.name}</div>
+              <div style="font-size:12px;color:var(--t3)">${quien} prestó → ${debedor} debe · ${fmt(paid.total||0)}</div>
+            </div>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
+          </div>
+          <div class="rep-detail" id="rd-${item.id}">
+            ${entriesHtml}
+            <div style="background:var(--s3);border-radius:var(--rs);padding:14px">
+              <div style="font-size:12px;font-weight:500;color:var(--t2);margin-bottom:12px">Registrar préstamo</div>
+              <div class="fg" style="margin-bottom:10px"><div class="fl">monto (COP) *</div>
+                <div class="monto-wrap"><input type="number" id="em-${item.id}" placeholder="0" oninput="checkBtn(${item.id})"><div class="monto-chk" id="echk-${item.id}" onclick="applyCheck(${item.id},${item.budget||0})"></div></div>
+              </div>
+              <div class="fg" style="margin-bottom:10px"><div class="fl">quién prestó *</div>
+                <select id="eq-${item.id}" onchange="checkBtn(${item.id})"><option value="">— elegir —</option><option>Nata</option><option>Santiago</option></select>
+              </div>
+              <div class="fg" style="margin-bottom:10px"><div class="fl">nota</div><input type="text" id="en-${item.id}" placeholder="ej: chaqueta, emergencia..."></div>
+              <div class="fg" style="margin-bottom:14px"><div class="fl">comprobante</div>
+                <label class="photo-btn" onclick="triggerPhoto('ep-${item.id}')">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="8" cy="8" r="2.5"/><path d="M5 3l1-2h4l1 2"/></svg>
+                  <span id="epl-${item.id}">Adjuntar foto</span>
+                </label>
+                <input type="file" id="ep-${item.id}" accept="image/*" onchange="handlePhoto('ep-${item.id}','epl-${item.id}','epu-${item.id}')">
+                <input type="hidden" id="epu-${item.id}">
+              </div>
+              <button class="btn btn-a btn-full" id="ebtn-${item.id}" onclick="addEntry(${item.id},0,'')" disabled>+ Registrar préstamo</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+      html+=`<div class="cat-section">
+        <div class="cat-hdr"><span>${cat.name}</span></div>
+        <div class="card" style="padding:4px 14px">${prestHtml}</div>
+        <button class="btn btn-ghost btn-full" style="margin-top:4px;font-size:12px" onclick="addPrestamoItem()">+ Agregar préstamo</button>
+      </div>`;
+      return;
+    }
     const itemsHtml=(cat.items||[]).map(item=>{
-      catBudget+=item.budget;
+      if(!item.anual)catBudget+=item.budget;
       const paid=getItemPaid(item.id);catPaid+=paid.total;
       const hasPaid=paid.entries.length>0;
+      const isAnual=item.anual||false;
+      // For annual: check if paid this year
+      const paidThisYear=isAnual&&Object.entries(S.reportes||{}).some(([k,rep])=>{
+        const[y]=k.split('-').map(Number);
+        return y===localRepYear&&getPaidFromRep(item.id,rep).entries.length>0;
+      });
       const exc=item.budget-paid.total;
       const excHtml=hasPaid?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${exc>=0?'+':''}${fmt(exc)}</span>`:'';
       const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70/30':item.split==='nata'?'Nata':'Santi';
       const autoQuien=isNata?'Nata':isSanti?'Santiago':'';
+      const anualBadge=isAnual?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
         <div class="entry-item">
@@ -959,7 +1055,7 @@ function renderReporte(){
       return`<div class="rep-item">
         <div class="rep-main" onclick="toggleD('rd-${item.id}')">
           <div class="chk ${hasPaid?'paid':''}"></div>
-          <div><div style="font-size:15px">${item.name} ${excHtml}</div><div style="font-size:12px;color:var(--t3)">${fmt(item.budget)} · ${splitLabel}</div></div>
+          <div><div style="font-size:15px">${item.name} ${excHtml} ${anualBadge}</div><div style="font-size:12px;color:var(--t3)">${isAnual?'anual · ':fmt(item.budget)+' · '}${splitLabel}</div></div>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
         </div>
         <div class="rep-detail" id="rd-${item.id}">
@@ -1060,6 +1156,11 @@ window.addEntry=function(itemId,budget,autoQuien){
   const item=allItems().find(i=>i.id===itemId);
   if(item&&item.name==='Deuda a Santiago'&&quien==='Nata'){S.deuNataPagado=(S.deuNataPagado||0)+monto;}
   // For direct bolsillos: acumulado is computed from reportes, no need to update here
+  // BUT if item has a bolsillo config not in BOLSILLO_MAP, update it directly
+  if(item&&item.bolsillo&&!BOLSILLO_MAP[item.name]){
+    const bol=S.bolsillos.find(b=>b.name===item.bolsillo);
+    if(bol){if(!bol.log)bol.log=[];bol.acumulado=(bol.acumulado||0)+monto;bol.log.push({desc:`${item.name} · ${MONTHS[localRepMonth]}`,obs:nota,monto,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'abono'});}
+  }
   syncR();
 };
 
@@ -1076,7 +1177,7 @@ window.removeEntry=function(itemId,ei){
 };
 
 window.closeMonth=function(){
-  if(!confirm(`¿Cerrar ${MONTHS[S.currentMonth]}? Solo los excedentes comunes se moverán al bolsillo.`))return;
+  if(!confirm(`¿Cerrar ${MONTHS[localRepMonth]}? Solo los excedentes comunes se moverán al bolsillo.`))return;
   // Solo excedentes comunes — los demás bolsillos ya se llenaron directo
   let excTotal=0;const excLog=[];
   (S.cats||[]).forEach(cat=>{
@@ -1085,7 +1186,7 @@ window.closeMonth=function(){
     (cat.items||[]).forEach(item=>{
       if(BOLSILLO_MAP[item.name])return; // ya se llenó directo
       const paid=getItemPaid(item.id);
-      if(paid.entries.length>0){const exc=item.budget-paid.total;if(exc>0){excTotal+=exc;excLog.push({desc:`Excedente ${item.name}`,monto:exc,fecha:`${MONTHS[S.currentMonth]} ${S.currentYear}`,tipo:'excedente'});}}
+      if(paid.entries.length>0){const exc=item.budget-paid.total;if(exc>0){excTotal+=exc;excLog.push({desc:`Excedente ${item.name}`,monto:exc,fecha:`${MONTHS[localRepMonth]} ${localRepYear}`,tipo:'excedente'});}}
     });
   });
   const exBol=S.bolsillos.find(b=>b.isExcedente);
@@ -1242,13 +1343,53 @@ function renderConfig(){
   applyInputs();
   let html='';
   (S.cats||[]).forEach((cat,ci)=>{
-    html+=`<div class="card"><div class="card-hdr"><span class="card-ttl">${cat.name}</span><button class="btn btn-sm" onclick="openModal(${ci})">+ agregar</button></div>`;
-    html+=(cat.items||[]).map((item,ii)=>`<div class="cfg-item">
-      <div class="cfg-item-row"><input class="cfg-name-inp" value="${item.name}" placeholder="nombre" onchange="S.cats[${ci}].items[${ii}].name=this.value;syncR()"><button class="btn-danger" onclick="delItem(${ci},${ii})">×</button></div>
-      <input class="cfg-bgt-inp" type="number" value="${item.budget}" placeholder="presupuesto" onchange="S.cats[${ci}].items[${ii}].budget=parseFloat(this.value)||0;syncR()">
-    </div>`).join('');
+    html+=`<div class="card">
+      <div class="card-hdr">
+        <span class="card-ttl">${cat.name}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-ghost" onclick="renamecat(${ci})" style="font-size:11px;padding:6px 10px">✏️</button>
+          <button class="btn btn-sm" onclick="openModal(${ci})">+ agregar</button>
+        </div>
+      </div>`;
+    html+=(cat.items||[]).map((item,ii)=>{
+      const bolNombre=item.bolsillo||'';
+      const bolOpts=(S.bolsillos||[]).map(b=>`<option value="${b.name}" ${bolNombre===b.name?'selected':''}>${b.name}</option>`).join('');
+      return`<div class="cfg-item">
+        <div class="cfg-item-row">
+          <input class="cfg-name-inp" value="${item.name}" placeholder="nombre" onchange="S.cats[${ci}].items[${ii}].name=this.value;syncR()">
+          <button class="btn-danger" onclick="delItem(${ci},${ii})">×</button>
+        </div>
+        <input class="cfg-bgt-inp" type="number" value="${item.budget}" placeholder="presupuesto" onchange="S.cats[${ci}].items[${ii}].budget=parseFloat(this.value)||0;syncR()">
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--t3)">
+            <input type="checkbox" ${item.anual?'checked':''} onchange="S.cats[${ci}].items[${ii}].anual=this.checked;syncR()" style="width:auto;padding:0;accent-color:var(--accent)">
+            anual
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--t3)">
+            <input type="checkbox" ${bolNombre?'checked':''} onchange="toggleBolsillo(${ci},${ii},this.checked)" style="width:auto;padding:0;accent-color:var(--accent)">
+            → bolsillo
+          </label>
+          ${bolNombre?`<select style="font-size:12px;padding:6px 10px;flex:1" onchange="S.cats[${ci}].items[${ii}].bolsillo=this.value;syncR()"><option value="">— elegir —</option>${bolOpts}</select>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    html+=`<button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat(${ci})">Eliminar categoría</button>`;
     html+='</div>';
   });
+  // Nueva categoría
+  html+=`<div class="card" style="border-style:dashed">
+    <div class="card-ttl" style="margin-bottom:14px">nueva categoría</div>
+    <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nc-n" placeholder="ej: Vehículo"></div>
+    <div class="fg" style="margin-bottom:14px"><div class="fl">tipo de gasto</div>
+      <select id="nc-s">
+        <option value="50-50">Común 50/50</option>
+        <option value="70-30">Homeschool 70% Santi / 30% Nata</option>
+        <option value="nata">Solo Nata</option>
+        <option value="santi">Solo Santiago</option>
+      </select>
+    </div>
+    <button class="btn btn-a btn-full" onclick="addCat()">+ Crear categoría</button>
+  </div>`;
   document.getElementById('cfg-cats').innerHTML=html;
   document.getElementById('cfg-bols').innerHTML=(S.bolsillos||[]).filter(b=>b.manual).map(b=>{
     const ri=(S.bolsillos||[]).indexOf(b);
@@ -1258,7 +1399,44 @@ function renderConfig(){
     </div>`;
   }).join('')||'<div class="empty">Sin bolsillos manuales</div>';
 }
-window.delItem=function(ci,ii){if(confirm('¿Eliminar?')){S.cats[ci].items.splice(ii,1);syncR();}};
+
+window.toggleBolsillo=function(ci,ii,on){
+  if(on){
+    const nombre=S.cats[ci].items[ii].name;
+    const match=(S.bolsillos||[]).find(b=>b.name.toLowerCase().includes(nombre.toLowerCase()));
+    S.cats[ci].items[ii].bolsillo=match?match.name:(S.bolsillos[0]?.name||'');
+  }else{
+    delete S.cats[ci].items[ii].bolsillo;
+  }
+  syncR();
+};
+window.addCat=function(){
+  const n=document.getElementById('nc-n')?.value.trim();
+  const s=document.getElementById('nc-s')?.value||'50-50';
+  if(!n)return;
+  const id='cat-'+Date.now();
+  S.cats.push({id,name:n,items:[],defaultSplit:s});
+  document.getElementById('nc-n').value='';
+  syncR();
+};
+window.renamecat=function(ci){
+  const n=prompt('Nuevo nombre para la categoría:',S.cats[ci].name);
+  if(n&&n.trim()){S.cats[ci].name=n.trim();syncR();}
+};
+window.delCat=function(ci){
+  if(confirm(`¿Eliminar categoría "${S.cats[ci].name}"? Se borrarán todos sus ítems.`)){S.cats.splice(ci,1);syncR();}
+};
+
+window.addPrestamoItem=function(){
+  const n=prompt('Nombre del préstamo (ej: Chaqueta Nata):');
+  if(!n)return;
+  const quien=confirm('¿Nata prestó a Santiago?\n\nOK = Nata prestó\nCancelar = Santiago prestó');
+  const prestamosCat=S.cats.find(c=>c.isPrestamos);
+  if(!prestamosCat)return;
+  if(!prestamosCat.items)prestamosCat.items=[];
+  prestamosCat.items.push({id:S.nextId++,name:n,budget:0,split:quien?'nata':'santi'});
+  syncR();
+};
 window.delBol=function(i){if(confirm('¿Eliminar bolsillo?')){S.bolsillos.splice(i,1);syncR();}};
 
 let modalCatIdx=-1;
