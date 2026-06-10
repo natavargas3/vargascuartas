@@ -1431,8 +1431,9 @@ window.addCasaPago=function(){
 function renderConfig(){
   applyInputs();
   let html='';
-  (S.cats||[]).forEach((cat,ci)=>{
-    if(cat.id==='prestamos'||cat.isPrestamos)return; // hidden from config
+  (S.cats||[]).forEach((cat)=>{
+    if(cat.id==='prestamos'||cat.isPrestamos)return;
+    const ci=S.cats.indexOf(cat); // real index in S.cats
     html+=`<div class="card">
       <div class="card-hdr">
         <span class="card-ttl">${cat.name}</span>
