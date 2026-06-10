@@ -210,6 +210,10 @@ textarea{resize:vertical;min-height:70px}
 .modal-handle{width:40px;height:4px;background:var(--s4);border-radius:2px;margin:0 auto 20px}
 .modal-ttl{font-size:18px;font-weight:600;margin-bottom:18px}
 .modal-acts{display:flex;gap:10px;margin-top:20px}
+.toggle-wrap{width:48px;height:28px;border-radius:14px;background:var(--s3);border:1px solid var(--b2);cursor:pointer;position:relative;flex-shrink:0;transition:background .2s}
+.toggle-wrap.on{background:var(--accent);border-color:var(--accent)}
+.toggle{width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.toggle-wrap.on .toggle{transform:translateX(20px)}
 
 /* AI */
 .ai-box{background:var(--s2);border-radius:var(--rs);padding:14px;font-size:13px;color:var(--t2);line-height:1.7;white-space:pre-wrap;margin-top:12px}
@@ -358,7 +362,6 @@ a{color:var(--accent);text-decoration:none}
     <div id="pin-msg" style="font-size:12px;margin-top:8px;min-height:18px"></div>
   </div>
   <div id="cfg-cats"></div>
-  <div class="card"><div class="card-hdr"><span class="card-ttl">bolsillos manuales</span></div><div id="cfg-bols"></div></div>
 </div>
 
 </div>
@@ -390,13 +393,70 @@ a{color:var(--accent);text-decoration:none}
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-ttl" id="modal-ttl">Agregar ítem</div>
-    <div class="fg" style="margin-bottom:12px"><div class="fl">nombre</div><input type="text" id="m-n" placeholder="nombre del gasto"></div>
-    <div class="fg" style="margin-bottom:12px"><div class="fl">presupuesto mensual (COP)</div><input type="number" id="m-m" placeholder="0"></div>
-    <div class="fg" id="m-sw" style="margin-bottom:12px"><div class="fl">distribución</div>
-      <select id="m-split"><option value="50-50">Común 50/50</option><option value="70-30">Homeschool 70% Santi / 30% Nata</option><option value="nata">Solo Nata</option><option value="santi">Solo Santiago</option></select>
+    <div class="modal-ttl" id="modal-ttl">Configurar ítem</div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">nombre</div>
+      <input type="text" id="m-n" placeholder="ej: Agua, Netflix, Seguro carro...">
     </div>
-    <div class="modal-acts"><button class="btn btn-full" onclick="closeModal()">Cancelar</button><button class="btn btn-a btn-full" onclick="saveModal()">Agregar</button></div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">presupuesto (COP)</div>
+      <input type="number" id="m-m" placeholder="0">
+      <div style="font-size:11px;color:var(--t3);margin-top:4px">Monto estimado para este ítem. Puede ser 0 si varía.</div>
+    </div>
+
+    <div class="fg" id="m-sw" style="margin-bottom:8px">
+      <div class="fl">distribución</div>
+      <select id="m-split" onchange="updateModalHints()">
+        <option value="50-50">Común 50/50</option>
+        <option value="70-30">Homeschool 70% Santi / 30% Nata</option>
+        <option value="nata100">Nata 100%</option>
+        <option value="santi100">Santiago 100%</option>
+        <option value="nata">Solo Nata (personal)</option>
+        <option value="santi">Solo Santiago (personal)</option>
+      </select>
+      <div id="m-split-hint" style="font-size:11px;color:var(--t3);margin-top:6px;padding:8px 10px;background:var(--s2);border-radius:var(--rx);line-height:1.6"></div>
+    </div>
+
+    <div style="height:1px;background:var(--b1);margin:16px 0"></div>
+
+    <!-- Toggle anual -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div style="flex:1;padding-right:16px">
+        <div style="font-size:14px;font-weight:500;margin-bottom:2px">¿Es anual?</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5">Apagado = se repite cada mes. Prendido = se paga una vez al año, queda como pagado hasta el siguiente año y el gasto va en el mes que se pague.</div>
+      </div>
+      <div class="toggle-wrap" onclick="toggleModal('m-anual')">
+        <div class="toggle" id="m-anual-toggle"></div>
+        <input type="hidden" id="m-anual" value="0">
+      </div>
+    </div>
+
+    <!-- Toggle ahorro -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+      <div style="flex:1;padding-right:16px">
+        <div style="font-size:14px;font-weight:500;margin-bottom:2px">¿Es ahorro?</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5">Apagado = gasto normal. Prendido = el dinero pagado va directo a un bolsillo de ahorro.</div>
+      </div>
+      <div class="toggle-wrap" onclick="toggleModal('m-ahorro')">
+        <div class="toggle" id="m-ahorro-toggle"></div>
+        <input type="hidden" id="m-ahorro" value="0">
+      </div>
+    </div>
+
+    <div id="m-bolsillo-wrap" style="display:none;margin-bottom:16px">
+      <div class="fg">
+        <div class="fl">bolsillo destino</div>
+        <select id="m-bolsillo"></select>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">Al registrar el pago, el monto irá automáticamente a este bolsillo.</div>
+      </div>
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" id="m-save-btn" onclick="saveModal()">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -625,11 +685,13 @@ const getRep=()=>{const k=repKey();if(!S.reportes)S.reportes={};if(!S.reportes[k
 const getDashRep=()=>{const k=dashKey();if(!S.reportes||!S.reportes[k])return{items:{},closed:false};return S.reportes[k];};
 
 function getSplit(item){
-  const b=item.budget;
+  const b=item.budget||0;
   if(item.split==='50-50')return{nata:b/2,santi:b/2};
   if(item.split==='70-30')return{nata:b*0.3,santi:b*0.7};
   if(item.split==='nata')return{nata:b,santi:0};
   if(item.split==='santi')return{nata:0,santi:b};
+  if(item.split==='nata100')return{nata:b,santi:0}; // Nata prestó
+  if(item.split==='santi100')return{nata:0,santi:b}; // Santi prestó
   return{nata:b/2,santi:b/2};
 }
 
@@ -659,28 +721,38 @@ function getRepForKey(key){return S.reportes&&S.reportes[key]?S.reportes[key]:{i
 function computeBalance(rep){
   let santiDebeANata=0,nataDebeASanti=0,natPaid=0,sanPaid=0,natItems=0,sanItems=0,natPaidItems=0,sanPaidItems=0;
   (S.cats||[]).forEach(cat=>{
+    // Personales: EXCLUIDOS del balance completamente
     if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
-    if(cat.isPrestamos){
-      (cat.items||[]).forEach(item=>{
-        const paid=getPaidFromRep(item.id,rep);
-        // split='nata' means Nata lent → Santiago owes Nata
-        // split='santi' means Santiago lent → Nata owes Santiago
-        paid.entries.forEach(e=>{
-          if(e.quien==='Nata')santiDebeANata+=e.monto;
-          else nataDebeASanti+=e.monto;
-        });
-        natPaid+=paid.nata;sanPaid+=paid.santi;
-      });
-      return;
-    }
+    // También excluir cualquier cat marcada como solo personal
+    if(cat.soloPersonal)return;
+
     (cat.items||[]).forEach(item=>{
-      const sp=getSplit(item);
-      if(sp.nata>0)natItems++;if(sp.santi>0)sanItems++;
       const paid=getPaidFromRep(item.id,rep);
+      if(!paid.entries.length)return;
+
+      // Préstamos: nata100 = Nata prestó, santi100 = Santi prestó
+      if(item.split==='nata100'){
+        // Nata prestó → todo lo que Nata registró le corresponde cobrar a Santi
+        santiDebeANata+=paid.nata;
+        // Si Santi registró el pago del préstamo → Santi pagó su deuda, no genera nueva deuda
+        return;
+      }
+      if(item.split==='santi100'){
+        // Santi prestó → todo lo que Santi registró le corresponde cobrar a Nata
+        nataDebeASanti+=paid.santi;
+        return;
+      }
+
+      // Gastos comunes: calcular quién pagó de más
+      const sp=getSplit(item);
       natPaid+=paid.nata;sanPaid+=paid.santi;
+      if(sp.nata>0)natItems++;if(sp.santi>0)sanItems++;
       if(paid.nata>0)natPaidItems++;if(paid.santi>0)sanPaidItems++;
-      if(paid.nata>0){const d=Math.min(sp.santi,Math.max(0,paid.nata-sp.nata));santiDebeANata+=d;}
-      if(paid.santi>0){const d=Math.min(sp.nata,Math.max(0,paid.santi-sp.santi));nataDebeASanti+=d;}
+
+      // Si Nata pagó más de su parte → Santi le debe la diferencia
+      if(paid.nata>sp.nata)santiDebeANata+=Math.min(paid.nata-sp.nata,sp.santi);
+      // Si Santi pagó más de su parte → Nata le debe la diferencia
+      if(paid.santi>sp.santi)nataDebeASanti+=Math.min(paid.santi-sp.santi,sp.nata);
     });
   });
   const net=santiDebeANata-nataDebeASanti;
@@ -782,11 +854,16 @@ function renderDashboard(){
   else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
   else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
   const showSaldar=!saldado&&anyPaid&&Math.abs(bal.net)>=1000;
+  // Detail breakdown
+  const detalle=`<div style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.8">
+    Santi debe a Nata: <span style="color:var(--santi);font-family:'DM Mono',monospace">${fmt(bal.santiDebeANata||0)}</span><br>
+    Nata debe a Santi: <span style="color:var(--nata);font-family:'DM Mono',monospace">${fmt(bal.nataDebeASanti||0)}</span>
+  </div>`;
 
   document.getElementById('dash-balance-hero').innerHTML=`
     <div class="bal-hero">
       <div class="bal-ttl">balance de aportes · ${MONTHS[localDashMonth]}</div>
-      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}</div>
+      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}${detalle}</div>
       ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
       <div class="bal-col">
         <div class="bal-col-name">Nata pagó</div>
@@ -1029,8 +1106,8 @@ function renderReporte(){
       });
       const exc=item.budget-paid.total;
       const excHtml=hasPaid?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${exc>=0?'+':''}${fmt(exc)}</span>`:'';
-      const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70/30':item.split==='nata'?'Nata':'Santi';
-      const autoQuien=isNata?'Nata':isSanti?'Santiago':'';
+      const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70% Santi':item.split==='nata'||item.split==='nata100'?'Nata':item.split==='santi100'?'Santi prestó':'Santi';
+      const autoQuien=isNata?'Nata':isSanti?'Santiago':item.split==='nata'?'Nata':item.split==='santi'?'Santiago':item.split==='nata100'?'Nata':item.split==='santi100'?'Santiago':'';
       const anualBadge=isAnual?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
@@ -1347,6 +1424,7 @@ function renderConfig(){
   applyInputs();
   let html='';
   (S.cats||[]).forEach((cat,ci)=>{
+    if(cat.id==='prestamos'||cat.isPrestamos)return; // hidden from config
     html+=`<div class="card">
       <div class="card-hdr">
         <span class="card-ttl">${cat.name}</span>
@@ -1356,24 +1434,23 @@ function renderConfig(){
         </div>
       </div>`;
     html+=(cat.items||[]).map((item,ii)=>{
-      const bolNombre=item.bolsillo||'';
-      const bolOpts=(S.bolsillos||[]).map(b=>`<option value="${b.name}" ${bolNombre===b.name?'selected':''}>${b.name}</option>`).join('');
+      const splitLabel={'50-50':'50/50','70-30':'70% Santi','nata100':'Nata 100%','santi100':'Santi 100%','nata':'Solo Nata','santi':'Solo Santi'}[item.split]||item.split;
+      const tags=[];
+      if(item.anual)tags.push('<span class="bdg byel" style="font-size:9px">anual</span>');
+      if(item.bolsillo)tags.push(`<span class="bdg bgrn" style="font-size:9px">→ ${item.bolsillo}</span>`);
       return`<div class="cfg-item">
         <div class="cfg-item-row">
-          <input class="cfg-name-inp" value="${item.name}" placeholder="nombre" onchange="S.cats[${ci}].items[${ii}].name=this.value;syncR()">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:500">${item.name}</div>
+            <div style="font-size:11px;color:var(--t3);margin-top:2px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+              <span>${fmt(item.budget)}</span>
+              <span>·</span>
+              <span>${splitLabel}</span>
+              ${tags.join('')}
+            </div>
+          </div>
+          <button class="btn btn-xs" onclick="openModal(${ci},${ii})" style="flex-shrink:0">✏️ editar</button>
           <button class="btn-danger" onclick="delItem(${ci},${ii})">×</button>
-        </div>
-        <input class="cfg-bgt-inp" type="number" value="${item.budget}" placeholder="presupuesto" onchange="S.cats[${ci}].items[${ii}].budget=parseFloat(this.value)||0;syncR()">
-        <div style="display:flex;align-items:center;gap:12px;margin-top:6px;flex-wrap:wrap">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--t3)">
-            <input type="checkbox" ${item.anual?'checked':''} onchange="S.cats[${ci}].items[${ii}].anual=this.checked;syncR()" style="width:auto;padding:0;accent-color:var(--accent)">
-            anual
-          </label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--t3)">
-            <input type="checkbox" ${bolNombre?'checked':''} onchange="toggleBolsillo(${ci},${ii},this.checked)" style="width:auto;padding:0;accent-color:var(--accent)">
-            → bolsillo
-          </label>
-          ${bolNombre?`<select style="font-size:12px;padding:6px 10px;flex:1" onchange="S.cats[${ci}].items[${ii}].bolsillo=this.value;syncR()"><option value="">— elegir —</option>${bolOpts}</select>`:''}
         </div>
       </div>`;
     }).join('');
@@ -1395,13 +1472,6 @@ function renderConfig(){
     <button class="btn btn-a btn-full" onclick="addCat()">+ Crear categoría</button>
   </div>`;
   document.getElementById('cfg-cats').innerHTML=html;
-  document.getElementById('cfg-bols').innerHTML=(S.bolsillos||[]).filter(b=>b.manual).map(b=>{
-    const ri=(S.bolsillos||[]).indexOf(b);
-    return`<div class="cfg-item">
-      <div class="cfg-item-row"><input class="cfg-name-inp" value="${b.name}" placeholder="nombre" onchange="S.bolsillos[${ri}].name=this.value;syncR()"><button class="btn-danger" onclick="delBol(${ri})">×</button></div>
-      <input class="cfg-bgt-inp" type="number" value="${b.metaMensual}" placeholder="meta mensual" onchange="S.bolsillos[${ri}].metaMensual=parseFloat(this.value)||0;syncR()">
-    </div>`;
-  }).join('')||'<div class="empty">Sin bolsillos manuales</div>';
 }
 
 window.toggleBolsillo=function(ci,ii,on){
@@ -1444,28 +1514,102 @@ window.addPrestamoItem=function(){
 window.delBol=function(i){if(confirm('¿Eliminar bolsillo?')){S.bolsillos.splice(i,1);syncR();}};
 
 let modalCatIdx=-1;
-window.openModal=function(ci){
-  modalCatIdx=ci;const cat=S.cats[ci];
+let modalItemIdx=-1; // -1 = new item, >= 0 = editing existing
+
+const SPLIT_HINTS={
+  '50-50':'Cada uno paga la mitad. Para gastos del hogar compartidos como servicios, mercado, ocio.',
+  '70-30':'Santiago asume el 70% y Nata el 30%. Para gastos de homeschool.',
+  'nata100':'Nata asume el 100% de este gasto. Si Santiago lo paga en algún momento, entra al balance como deuda a favor de Nata.',
+  'santi100':'Santiago asume el 100% de este gasto. Si Nata lo paga en algún momento, entra al balance como deuda a favor de Santiago.',
+  'nata':'Gasto personal de Nata. No entra al balance. Solo afecta el disponible de Nata para Casa 51.',
+  'santi':'Gasto personal de Santiago. No entra al balance. Solo afecta el disponible de Santiago.',
+};
+
+window.updateModalHints=function(){
+  const val=document.getElementById('m-split')?.value||'50-50';
+  const hint=document.getElementById('m-split-hint');
+  if(hint)hint.textContent=SPLIT_HINTS[val]||'';
+};
+
+window.toggleModal=function(id){
+  const input=document.getElementById(id);
+  const wrap=document.getElementById(id+'-toggle')?.parentElement;
+  if(!input||!wrap)return;
+  const isOn=input.value==='1';
+  input.value=isOn?'0':'1';
+  wrap.classList.toggle('on',!isOn);
+  // Show/hide bolsillo selector
+  if(id==='m-ahorro'){
+    const bolWrap=document.getElementById('m-bolsillo-wrap');
+    if(bolWrap)bolWrap.style.display=isOn?'none':'block';
+  }
+};
+
+window.openModal=function(ci,ii){
+  modalCatIdx=ci;
+  modalItemIdx=ii===undefined?-1:ii;
+  const cat=S.cats[ci];
   if(!cat)return;
-  document.getElementById('modal-ttl').textContent=`Agregar a ${cat.name}`;
+
+  const isEditing=modalItemIdx>=0;
+  const item=isEditing?(cat.items||[])[modalItemIdx]:null;
+
+  document.getElementById('modal-ttl').textContent=isEditing?`Editar: ${item?.name||''}`:`Agregar a ${cat.name}`;
+  document.getElementById('m-save-btn').textContent=isEditing?'Guardar cambios':'Agregar';
+
+  // Fill values
+  document.getElementById('m-n').value=item?.name||'';
+  document.getElementById('m-m').value=item?.budget||0;
+
+  // Split
   const isPers=cat.id==='nata-personal'||cat.id==='santi-personal';
-  const isPrest=cat.isPrestamos||cat.id==='prestamos';
-  document.getElementById('m-sw').style.display=(isPers||isPrest)?'none':'block';
-  if(cat.id==='nata-personal')document.getElementById('m-split').value='nata';
-  else if(cat.id==='santi-personal')document.getElementById('m-split').value='santi';
-  else if(cat.id==='homeschool')document.getElementById('m-split').value='70-30';
-  else if(cat.defaultSplit)document.getElementById('m-split').value=cat.defaultSplit;
-  else document.getElementById('m-split').value='50-50';
-  document.getElementById('m-n').value='';document.getElementById('m-m').value='';
+  document.getElementById('m-sw').style.display=isPers?'none':'block';
+  let defaultSplit='50-50';
+  if(cat.id==='nata-personal')defaultSplit='nata';
+  else if(cat.id==='santi-personal')defaultSplit='santi';
+  else if(cat.id==='homeschool')defaultSplit='70-30';
+  else if(cat.defaultSplit)defaultSplit=cat.defaultSplit;
+  document.getElementById('m-split').value=item?.split||defaultSplit;
+
+  // Toggles
+  const anualOn=item?.anual||false;
+  const ahorroOn=!!(item?.bolsillo);
+  document.getElementById('m-anual').value=anualOn?'1':'0';
+  document.getElementById('m-anual-toggle').parentElement.classList.toggle('on',anualOn);
+  document.getElementById('m-ahorro').value=ahorroOn?'1':'0';
+  document.getElementById('m-ahorro-toggle').parentElement.classList.toggle('on',ahorroOn);
+
+  // Bolsillo selector
+  const bolWrap=document.getElementById('m-bolsillo-wrap');
+  bolWrap.style.display=ahorroOn?'block':'none';
+  const bolSel=document.getElementById('m-bolsillo');
+  bolSel.innerHTML=(S.bolsillos||[]).map(b=>`<option value="${b.name}" ${item?.bolsillo===b.name?'selected':''}>${b.name}</option>`).join('');
+
+  updateModalHints();
   document.getElementById('modal-bg').classList.add('open');
   setTimeout(()=>document.getElementById('m-n').focus(),100);
 };
-window.closeModal=function(){document.getElementById('modal-bg').classList.remove('open');};
+
+window.closeModal=function(){document.getElementById('modal-bg').classList.remove('open');modalItemIdx=-1;};
+
 window.saveModal=function(){
-  const n=document.getElementById('m-n').value.trim(),m=parseFloat(document.getElementById('m-m').value)||0;
+  const n=document.getElementById('m-n').value.trim();
+  const m=parseFloat(document.getElementById('m-m').value)||0;
   const split=document.getElementById('m-split').value;
+  const anual=document.getElementById('m-anual').value==='1';
+  const ahorro=document.getElementById('m-ahorro').value==='1';
+  const bolsillo=ahorro?document.getElementById('m-bolsillo').value:'';
   if(!n)return;
-  S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split});
+
+  if(modalItemIdx>=0){
+    // Editing existing
+    const item=S.cats[modalCatIdx].items[modalItemIdx];
+    item.name=n;item.budget=m;item.split=split;item.anual=anual;
+    if(bolsillo)item.bolsillo=bolsillo;else delete item.bolsillo;
+  }else{
+    // New item
+    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,bolsillo:bolsillo||undefined});
+  }
   closeModal();syncR();
 };
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-bg'))closeModal();});
