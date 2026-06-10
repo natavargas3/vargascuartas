@@ -639,9 +639,8 @@ onValue(dbRef,snap=>{
     if(!S.casaPagos)S.casaPagos=[];
     if(!S.reportes)S.reportes={};
     if(!S.saldos)S.saldos={};
-    // Add prestamos cat if missing, fix isPrestamos flag
+    // Fix isPrestamos flag for existing data
     S.cats.forEach(c=>{if(c.id==='prestamos')c.isPrestamos=true;});
-    if(!S.cats.find(c=>c.id==='prestamos'))S.cats.push({id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
     S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
@@ -743,16 +742,25 @@ function computeBalance(rep){
         return;
       }
 
+      // Gastos solo de una persona — no entran al balance
+      if(item.split==='nata'||item.split==='santi')return;
+
       // Gastos comunes: calcular quién pagó de más
       const sp=getSplit(item);
       natPaid+=paid.nata;sanPaid+=paid.santi;
       if(sp.nata>0)natItems++;if(sp.santi>0)sanItems++;
       if(paid.nata>0)natPaidItems++;if(paid.santi>0)sanPaidItems++;
 
-      // Si Nata pagó más de su parte → Santi le debe la diferencia
-      if(paid.nata>sp.nata)santiDebeANata+=Math.min(paid.nata-sp.nata,sp.santi);
-      // Si Santi pagó más de su parte → Nata le debe la diferencia
-      if(paid.santi>sp.santi)nataDebeASanti+=Math.min(paid.santi-sp.santi,sp.nata);
+      // Si Nata pagó más de su parte → Santi le debe la diferencia (capped at santi's share)
+      if(paid.nata>0&&sp.santi>0){
+        const nataExceso=Math.max(0,paid.nata-sp.nata);
+        santiDebeANata+=Math.min(nataExceso,sp.santi);
+      }
+      // Si Santi pagó más de su parte → Nata le debe la diferencia (capped at nata's share)
+      if(paid.santi>0&&sp.nata>0){
+        const santiExceso=Math.max(0,paid.santi-sp.santi);
+        nataDebeASanti+=Math.min(santiExceso,sp.nata);
+      }
     });
   });
   const net=santiDebeANata-nataDebeASanti;
@@ -1489,7 +1497,11 @@ window.addCat=function(){
   const s=document.getElementById('nc-s')?.value||'50-50';
   if(!n)return;
   const id='cat-'+Date.now();
-  S.cats.push({id,name:n,items:[],defaultSplit:s});
+  const newCat={id,name:n,items:[],defaultSplit:s};
+  // Insert before nata-personal
+  const natIdx=S.cats.findIndex(c=>c.id==='nata-personal');
+  if(natIdx>=0)S.cats.splice(natIdx,0,newCat);
+  else S.cats.push(newCat);
   document.getElementById('nc-n').value='';
   syncR();
 };
