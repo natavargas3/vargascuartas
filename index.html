@@ -22,7 +22,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.5;height:100%;overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
-.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav)+16px)}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav)+24px)}
 .page{display:none;padding:20px 16px;animation:fi .18s ease}
 .page.active{display:block}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -276,15 +276,22 @@ a{color:var(--accent);text-decoration:none}
   <div id="dash-balance-hero"></div>
   <div class="mg2" id="dash-metrics"></div>
 
+  <div class="card" style="margin-top:12px">
+    <div onclick="toggleActivityLog()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
+      <span class="card-ttl">actividad reciente</span>
+      <span id="activity-arrow" style="font-size:11px;color:var(--t3);transition:transform .2s">▶</span>
+    </div>
+    <div id="activity-body" style="display:none;margin-top:12px" data-rendered="false"></div>
+  </div>
 
   <div class="slabel">gastos por categoría</div>
   <div id="dash-cats"></div>
 
-  <div class="slabel">deuda Nata → Santiago</div>
+  <div class="slabel">deuda Nata → Santi</div>
   <div class="card" id="dash-deuda"></div>
   <div class="slabel">Casa 51</div>
   <div class="card" id="dash-casa51"></div>
-  <div style="height:8px"></div>
+  <div style="height:40px"></div>
 </div>
 
 <!-- REPORTE -->
@@ -414,7 +421,7 @@ a{color:var(--accent);text-decoration:none}
         <option value="nata100">Nata 100%</option>
         <option value="santi100">Santiago 100%</option>
         <option value="nata">Solo Nata (personal)</option>
-        <option value="santi">Solo Santiago (personal)</option>
+        <option value="santi">Solo Santi (personal)</option>
       </select>
       <div id="m-split-hint" style="font-size:11px;color:var(--t3);margin-top:6px;padding:8px 10px;background:var(--s2);border-radius:var(--rx);line-height:1.6"></div>
     </div>
@@ -468,11 +475,17 @@ function checkPin(){
   function ask(){
     var input=prompt('Vargas Cuartas\nIngresa tu PIN de acceso:');
     if(input===null){ask();return;}
-    if(input===getPin()){return;}
+    if(input===getPin()){askUser();return;}
     attempts++;
     alert('PIN incorrecto. Intento '+attempts+' de 3.');
     if(attempts<3){ask();}
     else{alert('Demasiados intentos. Recarga la página.');document.body.innerHTML='<div style="background:#0f0f0f;color:#ff6b6b;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-size:18px">Acceso bloqueado. Recarga la página.</div>';}
+  }
+  function askUser(){
+    var saved=localStorage.getItem('vc-user');
+    if(saved)return; // already set
+    var who=confirm('¿Quién eres?\n\nOK = Nata\nCancelar = Santi');
+    localStorage.setItem('vc-user',who?'Nata':'Santi');
   }
   ask();
 }
@@ -552,7 +565,6 @@ const BOLSILLO_MAP={
   'Prima Norma':'Prima Norma',
   'Prima Profe':'Prima Profe',
   'Impuestos':'Fondo Impuestos',
-  'Mantenimiento y mobiliario':'Fondo Hogar',
 };
 
 const DEFAULT={
@@ -611,7 +623,7 @@ const DEFAULT={
     {id:3,name:'Abogados',total:3500000},{id:4,name:'John',total:52000000},
     {id:5,name:'Paola',total:162000000},{id:6,name:'Papá Carlos',total:345000000},
   ],
-  casaPagos:[],reportes:{},nextId:400,
+  casaPagos:[],reportes:{},nextId:400,activityLog:[],
 };
 
 window.S=JSON.parse(JSON.stringify(DEFAULT));
@@ -639,6 +651,7 @@ onValue(dbRef,snap=>{
     if(!S.casaPagos)S.casaPagos=[];
     if(!S.reportes)S.reportes={};
     if(!S.saldos)S.saldos={};
+    if(!S.activityLog)S.activityLog=[];
     // Fix isPrestamos flag for existing data
     S.cats.forEach(c=>{if(c.id==='prestamos')c.isPrestamos=true;});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
@@ -674,6 +687,13 @@ function applyInputs(){
 // HELPERS
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-CO');
 const fmtM=n=>{const m=Math.abs(n)/1000000;return(n<0?'-':'')+'$'+(m>=1?m.toFixed(1)+'M':Math.round(Math.abs(n)).toLocaleString('es-CO'));};
+
+function getCurrentUser(){return localStorage.getItem('vc-user')||'Nata';}
+function logActivity(action){
+  if(!S.activityLog)S.activityLog=[];
+  S.activityLog.unshift({user:getCurrentUser(),action,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});
+  if(S.activityLog.length>50)S.activityLog=S.activityLog.slice(0,50);
+}
 const pct=(a,b)=>b>0?Math.min(100,Math.round(a/b*100)):0;
 const trm=()=>S.trm||4200;
 const natIng=()=>S.nataUSD*trm()-2000000;
@@ -719,51 +739,49 @@ function getRepForKey(key){return S.reportes&&S.reportes[key]?S.reportes[key]:{i
 
 function computeBalance(rep){
   let santiDebeANata=0,nataDebeASanti=0,natPaid=0,sanPaid=0,natItems=0,sanItems=0,natPaidItems=0,sanPaidItems=0;
+  const debugLog=[];
   (S.cats||[]).forEach(cat=>{
-    // Personales: EXCLUIDOS del balance completamente
     if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
-    // También excluir cualquier cat marcada como solo personal
     if(cat.soloPersonal)return;
-
     (cat.items||[]).forEach(item=>{
       const paid=getPaidFromRep(item.id,rep);
       if(!paid.entries.length)return;
-
-      // Préstamos: nata100 = Nata prestó, santi100 = Santi prestó
-      if(item.split==='nata100'){
-        // Nata prestó → todo lo que Nata registró le corresponde cobrar a Santi
-        santiDebeANata+=paid.nata;
-        // Si Santi registró el pago del préstamo → Santi pagó su deuda, no genera nueva deuda
-        return;
-      }
-      if(item.split==='santi100'){
-        // Santi prestó → todo lo que Santi registró le corresponde cobrar a Nata
-        nataDebeASanti+=paid.santi;
-        return;
-      }
-
-      // Gastos solo de una persona — no entran al balance
       if(item.split==='nata'||item.split==='santi')return;
+      if(item.split==='nata100'){santiDebeANata+=paid.nata;return;}
+      if(item.split==='santi100'){nataDebeASanti+=paid.santi;return;}
 
-      // Gastos comunes: calcular quién pagó de más
-      const sp=getSplit(item);
+      const totalPagado=paid.nata+paid.santi;
+      if(totalPagado===0)return;
+
+      // Calculate each person's fair share based on split ratio
+      let ratioNata=0.5,ratioSanti=0.5;
+      if(item.split==='70-30'){ratioNata=0.3;ratioSanti=0.7;}
+
+      const debeNata=totalPagado*ratioNata;
+      const debeSanti=totalPagado*ratioSanti;
+
       natPaid+=paid.nata;sanPaid+=paid.santi;
-      if(sp.nata>0)natItems++;if(sp.santi>0)sanItems++;
+      if(ratioNata>0)natItems++;if(ratioSanti>0)sanItems++;
       if(paid.nata>0)natPaidItems++;if(paid.santi>0)sanPaidItems++;
 
-      // Si Nata pagó más de su parte → Santi le debe la diferencia (capped at santi's share)
-      if(paid.nata>0&&sp.santi>0){
-        const nataExceso=Math.max(0,paid.nata-sp.nata);
-        santiDebeANata+=Math.min(nataExceso,sp.santi);
+      // Who paid more than their share?
+      const nataExceso=paid.nata-debeNata; // positive = Nata paid extra, Santi owes her
+      const santiExceso=paid.santi-debeSanti; // positive = Santi paid extra, Nata owes him
+
+      if(nataExceso>0.5){
+        santiDebeANata+=nataExceso;
+        debugLog.push(`${item.name}: Nata pagó ${Math.round(paid.nata)}, debía ${Math.round(debeNata)}, Santi debe ${Math.round(nataExceso)}`);
       }
-      // Si Santi pagó más de su parte → Nata le debe la diferencia (capped at nata's share)
-      if(paid.santi>0&&sp.nata>0){
-        const santiExceso=Math.max(0,paid.santi-sp.santi);
-        nataDebeASanti+=Math.min(santiExceso,sp.nata);
+      if(santiExceso>0.5){
+        nataDebeASanti+=santiExceso;
+        debugLog.push(`${item.name}: Santi pagó ${Math.round(paid.santi)}, debía ${Math.round(debeSanti)}, Nata debe ${Math.round(santiExceso)}`);
       }
     });
   });
   const net=santiDebeANata-nataDebeASanti;
+  console.log('=== BALANCE DEBUG ===');
+  debugLog.forEach(l=>console.log(l));
+  console.log(`TOTAL: SantiDebeANata=${Math.round(santiDebeANata)}, NataDebeSanti=${Math.round(nataDebeASanti)}, NET=${Math.round(net)}`);
   return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net,santiDebeANata,nataDebeASanti};
 }
 
@@ -831,6 +849,19 @@ window.handlePhoto=async function(inputId,labelId,urlId){
 function renderDashboard(){
   const dashRep=getDashRep();
   document.getElementById('dml').textContent=`${MONTHS[localDashMonth]} ${localDashYear}`;
+
+  // Activity log
+  const actBody=document.getElementById('activity-body');
+  if(actBody){
+    const log=S.activityLog||[];
+    actBody.innerHTML=log.length===0?'<div style="font-size:12px;color:var(--t3)">Sin actividad registrada aún.</div>':log.slice(0,20).map(a=>`
+      <div style="padding:8px 0;border-bottom:1px solid var(--b1);font-size:12px">
+        <span class="bdg ${a.user==='Nata'?'bn':'bs'}" style="font-size:10px">${a.user}</span>
+        <span style="color:var(--t2);margin-left:6px">${a.action}</span>
+        <div style="color:var(--t3);font-size:10px;margin-top:2px">${a.fecha}</div>
+      </div>`).join('');
+  }
+
   const months=getFilterMonths();
   // aggregate across filter period
   let totBudget=0,totPaid=0;
@@ -862,8 +893,11 @@ function renderDashboard(){
   else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
   else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
   const showSaldar=!saldado&&anyPaid&&Math.abs(bal.net)>=1000;
-  // Detail breakdown
-  const detalle=`<div style="font-size:11px;color:var(--t3);margin-top:8px;line-height:1.8">
+  // Detail breakdown — collapsible
+  const detalle=`<div onclick="event.stopPropagation();toggleBalDetail()" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--t3)">
+    <span id="bal-detail-arrow" style="transition:transform .2s;display:inline-block">▶</span> ver desglose
+  </div>
+  <div id="bal-detail-body" style="display:none;font-size:11px;color:var(--t3);margin-top:8px;line-height:1.8">
     Santi debe a Nata: <span style="color:var(--santi);font-family:'DM Mono',monospace">${fmt(bal.santiDebeANata||0)}</span><br>
     Nata debe a Santi: <span style="color:var(--nata);font-family:'DM Mono',monospace">${fmt(bal.nataDebeASanti||0)}</span>
   </div>`;
@@ -880,7 +914,7 @@ function renderDashboard(){
         <div class="bar" style="height:5px">${bar(bal.natPaidItems,bal.natItems,'bnt')}</div>
       </div>
       <div class="bal-col">
-        <div class="bal-col-name">Santiago pagó</div>
+        <div class="bal-col-name">Santi pagó</div>
         <div class="bal-paid" style="color:var(--santi)">${fmt(bal.sanPaid)}</div>
         <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:4px"><span>ítems cubiertos</span><span style="font-family:'DM Mono',monospace">${bal.sanPaidItems}/${bal.sanItems} · ${pct(bal.sanPaidItems,bal.sanItems)}%</span></div>
         <div class="bar" style="height:5px">${bar(bal.sanPaidItems,bal.sanItems,'bst')}</div>
@@ -1003,10 +1037,27 @@ window.toggleItemDetail=function(id){
   document.querySelectorAll('.disc-item-detail.open').forEach(d=>{if(d.id!==id)d.classList.remove('open');});
   el.classList.toggle('open',!wasOpen);
 };
+window.toggleBalDetail=function(){
+  const body=document.getElementById('bal-detail-body');
+  const arrow=document.getElementById('bal-detail-arrow');
+  if(!body)return;
+  const isOpen=body.style.display==='block';
+  body.style.display=isOpen?'none':'block';
+  if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+};
+window.toggleActivityLog=function(){
+  const body=document.getElementById('activity-body');
+  const arrow=document.getElementById('activity-arrow');
+  if(!body)return;
+  const isOpen=body.style.display==='block';
+  body.style.display=isOpen?'none':'block';
+  if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+};
 window.marcarSaldado=function(){
   const key=`${localDashYear}-${localDashMonth}`;
   if(!S.saldos)S.saldos={};
   S.saldos[key]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
+  logActivity(`marcó ${MONTHS[localDashMonth]} como saldado`);
   syncR();
 };
 window.desmarcarSaldado=function(){
@@ -1250,6 +1301,7 @@ window.addEntry=function(itemId,budget,autoQuien){
     const bol=S.bolsillos.find(b=>b.name===item.bolsillo);
     if(bol){if(!bol.log)bol.log=[];bol.acumulado=(bol.acumulado||0)+monto;bol.log.push({desc:`${item.name} · ${MONTHS[localRepMonth]}`,obs:nota,monto,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'abono'});}
   }
+  logActivity(`agregó pago de ${item?.name||'ítem'}: ${fmt(monto)}`);
   syncR();
 };
 
@@ -1257,10 +1309,11 @@ window.removeEntry=function(itemId,ei){
   const rep=getRep();const k=`i${itemId}`;
   if(rep.items&&rep.items[k]&&rep.items[k].entries){
     const e=rep.items[k].entries[ei];
+    if(!confirm(`¿Eliminar este pago de ${fmt(e.monto)}? Esta acción no se puede deshacer.`))return;
     const item=allItems().find(i=>i.id===itemId);
     if(item&&item.name==='Deuda a Santiago'&&e.quien==='Nata'){S.deuNataPagado=Math.max(0,(S.deuNataPagado||0)-e.monto);}
-    // Direct bolsillos: just remove from reporte, acumulado recalculates automatically
     rep.items[k].entries.splice(ei,1);
+    logActivity(`eliminó pago de ${item?.name||'ítem'}: ${fmt(e.monto)}`);
     syncR();
   }
 };
@@ -1475,11 +1528,12 @@ function renderConfig(){
         <option value="50-50">Común 50/50</option>
         <option value="70-30">Homeschool 70% Santi / 30% Nata</option>
         <option value="nata">Solo Nata</option>
-        <option value="santi">Solo Santiago</option>
+        <option value="santi">Solo Santi</option>
       </select>
     </div>
     <button class="btn btn-a btn-full" onclick="addCat()">+ Crear categoría</button>
-  </div>`;
+  </div>
+  <div style="height:40px"></div>`;
   document.getElementById('cfg-cats').innerHTML=html;
 }
 
@@ -1494,16 +1548,19 @@ window.toggleBolsillo=function(ci,ii,on){
   syncR();
 };
 window.addCat=function(){
-  const n=document.getElementById('nc-n')?.value.trim();
-  const s=document.getElementById('nc-s')?.value||'50-50';
-  if(!n)return;
+  const inp=document.getElementById('nc-n');
+  const sel=document.getElementById('nc-s');
+  if(!inp){console.error('addCat: nc-n input not found');return;}
+  const n=inp.value.trim();
+  const s=sel?sel.value:'50-50';
+  if(!n){alert('Escribe un nombre para la categoría');return;}
   const id='cat-'+Date.now();
-  const newCat={id,name:n,items:[],defaultSplit:s};
-  // Insert before nata-personal
+  const newCat={id,name:n,items:[],defaultSplit:s,custom:true};
   const natIdx=S.cats.findIndex(c=>c.id==='nata-personal');
   if(natIdx>=0)S.cats.splice(natIdx,0,newCat);
   else S.cats.push(newCat);
-  document.getElementById('nc-n').value='';
+  inp.value='';
+  logActivity(`creó la categoría "${n}"`);
   syncR();
 };
 window.renamecat=function(ci){
@@ -1511,7 +1568,22 @@ window.renamecat=function(ci){
   if(n&&n.trim()){S.cats[ci].name=n.trim();syncR();}
 };
 window.delCat=function(ci){
-  if(confirm(`¿Eliminar categoría "${S.cats[ci].name}"? Se borrarán todos sus ítems.`)){S.cats.splice(ci,1);syncR();}
+  const cat=S.cats[ci];
+  if(!cat)return;
+  if(!cat.custom){alert('Esta categoría es parte del sistema base y no se puede eliminar. Solo puedes eliminar categorías que tú hayas creado.');return;}
+  if(confirm(`¿Eliminar categoría "${cat.name}"? Se borrarán todos sus ítems. Esta acción no se puede deshacer.`)){
+    logActivity(`eliminó la categoría "${cat.name}"`);
+    S.cats.splice(ci,1);syncR();
+  }
+};
+window.delItem=function(ci,ii){
+  const item=S.cats[ci]?.items?.[ii];
+  if(!item)return;
+  if(!item.custom){alert('Este ítem es parte del sistema base y no se puede eliminar. Solo puedes eliminar ítems que tú hayas agregado.');return;}
+  if(confirm(`¿Eliminar "${item.name}"? Esta acción no se puede deshacer.`)){
+    logActivity(`eliminó el ítem "${item.name}"`);
+    S.cats[ci].items.splice(ii,1);syncR();
+  }
 };
 
 window.addPrestamoItem=function(){
@@ -1524,7 +1596,15 @@ window.addPrestamoItem=function(){
   prestamosCat.items.push({id:S.nextId++,name:n,budget:0,split:quien?'nata':'santi'});
   syncR();
 };
-window.delBol=function(i){if(confirm('¿Eliminar bolsillo?')){S.bolsillos.splice(i,1);syncR();}};
+window.delBol=function(i){
+  const bol=S.bolsillos[i];
+  if(!bol)return;
+  if(!bol.manual){alert('Este bolsillo es parte del sistema y no se puede eliminar.');return;}
+  if(confirm(`¿Eliminar el bolsillo "${bol.name}"? Esta acción no se puede deshacer.`)){
+    logActivity(`eliminó el bolsillo "${bol.name}"`);
+    S.bolsillos.splice(i,1);syncR();
+  }
+};
 
 let modalCatIdx=-1;
 let modalItemIdx=-1; // -1 = new item, >= 0 = editing existing
@@ -1619,9 +1699,11 @@ window.saveModal=function(){
     const item=S.cats[modalCatIdx].items[modalItemIdx];
     item.name=n;item.budget=m;item.split=split;item.anual=anual;
     if(bolsillo)item.bolsillo=bolsillo;else delete item.bolsillo;
+    logActivity(`editó el ítem "${n}"`);
   }else{
-    // New item
-    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,bolsillo:bolsillo||undefined});
+    // New item — always custom (can be deleted)
+    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,bolsillo:bolsillo||undefined,custom:true});
+    logActivity(`agregó el ítem "${n}" en ${S.cats[modalCatIdx].name}`);
   }
   closeModal();syncR();
 };
