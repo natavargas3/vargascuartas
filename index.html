@@ -654,6 +654,8 @@ onValue(dbRef,snap=>{
     if(!S.activityLog)S.activityLog=[];
     // Fix isPrestamos flag for existing data
     S.cats.forEach(c=>{if(c.id==='prestamos')c.isPrestamos=true;});
+    // Fix: mark items of custom categories as custom if missing (e.g. 'test' item)
+    S.cats.forEach(c=>{if(c.custom)(c.items||[]).forEach(it=>{if(it.custom===undefined)it.custom=true;});});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
     S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
@@ -1491,8 +1493,8 @@ function renderConfig(){
       <div class="card-hdr">
         <span class="card-ttl">${cat.name}</span>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-ghost" onclick="renamecat(${ci})" style="font-size:11px;padding:6px 10px">✏️</button>
-          <button class="btn btn-sm" onclick="openModal(${ci})">+ agregar</button>
+          <button class="btn btn-sm btn-ghost" onclick="renamecat('${cat.id}')" style="font-size:11px;padding:6px 10px">✏️</button>
+          <button class="btn btn-sm" onclick="openModal('${cat.id}')">+ agregar</button>
         </div>
       </div>`;
     html+=(cat.items||[]).map((item,ii)=>{
@@ -1511,12 +1513,12 @@ function renderConfig(){
               ${tags.join('')}
             </div>
           </div>
-          <button class="btn btn-xs" onclick="openModal(${ci},${ii})" style="flex-shrink:0">✏️ editar</button>
-          <button class="btn-danger" onclick="delItem(${ci},${ii})">×</button>
+          <button class="btn btn-xs" onclick="openModal('${cat.id}',${item.id})" style="flex-shrink:0">✏️ editar</button>
+          <button class="btn-danger" onclick="delItem('${cat.id}',${item.id})">×</button>
         </div>
       </div>`;
     }).join('');
-    html+=`<button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat(${ci})">Eliminar categoría</button>`;
+    html+=`<button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat('${cat.id}')">Eliminar categoría</button>`;
     html+='</div>';
   });
   // Nueva categoría
@@ -1563,26 +1565,46 @@ window.addCat=function(){
   logActivity(`creó la categoría "${n}"`);
   syncR();
 };
-window.renamecat=function(ci){
+window.renamecat=function(catRef){
+  const ci=typeof catRef==='string'?S.cats.findIndex(c=>c.id===catRef):catRef;
   const n=prompt('Nuevo nombre para la categoría:',S.cats[ci].name);
   if(n&&n.trim()){S.cats[ci].name=n.trim();syncR();}
 };
-window.delCat=function(ci){
+window.delCat=function(catRef){
+  const ci=typeof catRef==='string'?S.cats.findIndex(c=>c.id===catRef):catRef;
   const cat=S.cats[ci];
   if(!cat)return;
   if(!cat.custom){alert('Esta categoría es parte del sistema base y no se puede eliminar. Solo puedes eliminar categorías que tú hayas creado.');return;}
-  if(confirm(`¿Eliminar categoría "${cat.name}"? Se borrarán todos sus ítems. Esta acción no se puede deshacer.`)){
+  // Check if any item has report data
+  const rep=getRep();
+  const hasData=(cat.items||[]).some(item=>{
+    const k=`i${item.id}`;
+    return rep.items&&rep.items[k]&&rep.items[k].entries&&rep.items[k].entries.length>0;
+  });
+  if(hasData){alert(`No puedes eliminar "${cat.name}" porque tiene gastos registrados en el reporte de este mes. Elimina los gastos primero.`);return;}
+  if((cat.items||[]).length>0){alert(`No puedes eliminar "${cat.name}" porque tiene subcategorías. Elimínalas primero.`);return;}
+  if(confirm(`¿Eliminar categoría "${cat.name}"? Esta acción no se puede deshacer.`)){
     logActivity(`eliminó la categoría "${cat.name}"`);
     S.cats.splice(ci,1);syncR();
   }
 };
-window.delItem=function(ci,ii){
-  const item=S.cats[ci]?.items?.[ii];
+window.delItem=function(catRef,itemRef){
+  const ci=typeof catRef==='string'?S.cats.findIndex(c=>c.id===catRef):catRef;
+  const cat=S.cats[ci];
+  if(!cat)return;
+  // Find item by item.id
+  const ii=(cat.items||[]).findIndex(it=>it.id===itemRef);
+  const item=cat?.items?.[ii];
   if(!item)return;
   if(!item.custom){alert('Este ítem es parte del sistema base y no se puede eliminar. Solo puedes eliminar ítems que tú hayas agregado.');return;}
-  if(confirm(`¿Eliminar "${item.name}"? Esta acción no se puede deshacer.`)){
+  // Check if item has report data
+  const rep=getRep();
+  const k=`i${item.id}`;
+  const hasData=rep.items&&rep.items[k]&&rep.items[k].entries&&rep.items[k].entries.length>0;
+  if(hasData){alert(`No puedes eliminar "${item.name}" porque tiene gastos registrados en el reporte de este mes. Elimina los gastos primero.`);return;}
+  if(confirm(`¿Eliminar "${item.name}"?`)){
     logActivity(`eliminó el ítem "${item.name}"`);
-    S.cats[ci].items.splice(ii,1);syncR();
+    cat.items.splice(ii,1);syncR();
   }
 };
 
@@ -1638,9 +1660,19 @@ window.toggleModal=function(id){
   }
 };
 
-window.openModal=function(ci,ii){
+window.openModal=function(catRef,itemRef){
+  // catRef can be cat.id (string) or array index (number) for backward compat
+  const ci=typeof catRef==='string'?S.cats.findIndex(c=>c.id===catRef):catRef;
   modalCatIdx=ci;
-  modalItemIdx=ii===undefined?-1:ii;
+  // itemRef can be item.id (number from item.id field) or array index
+  if(itemRef===undefined){
+    modalItemIdx=-1;
+  }else{
+    const cat=S.cats[ci];
+    // Try to find by item.id first, then fall back to array index
+    const byId=(cat.items||[]).findIndex(it=>it.id===itemRef);
+    modalItemIdx=byId>=0?byId:itemRef;
+  }
   const cat=S.cats[ci];
   if(!cat)return;
 
