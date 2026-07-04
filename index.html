@@ -1493,8 +1493,8 @@ function renderConfig(){
       <div class="card-hdr">
         <span class="card-ttl">${cat.name}</span>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-ghost" onclick="renamecat('${cat.id}')" style="font-size:11px;padding:6px 10px">✏️</button>
-          <button class="btn btn-sm" onclick="openModal('${cat.id}')">+ agregar</button>
+          <button class="btn btn-sm btn-ghost" data-catid="${cat.id}" onclick="renamecat(this.dataset.catid)" style="font-size:11px;padding:6px 10px">✏️</button>
+          <button class="btn btn-sm" data-catid="${cat.id}" onclick="openModal(this.dataset.catid)">+ agregar</button>
         </div>
       </div>`;
     html+=(cat.items||[]).map((item,ii)=>{
@@ -1513,12 +1513,12 @@ function renderConfig(){
               ${tags.join('')}
             </div>
           </div>
-          <button class="btn btn-xs" onclick="openModal('${cat.id}',${item.id})" style="flex-shrink:0">✏️ editar</button>
-          <button class="btn-danger" onclick="delItem('${cat.id}',${item.id})">×</button>
+          <button class="btn btn-xs" data-catid="${cat.id}" data-itemid="${item.id}" onclick="openModal(this.dataset.catid,+this.dataset.itemid)" style="flex-shrink:0">✏️ editar</button>
+          <button class="btn-danger" data-catid="${cat.id}" data-itemid="${item.id}" onclick="delItem(this.dataset.catid,+this.dataset.itemid)">×</button>
         </div>
       </div>`;
     }).join('');
-    html+=`<button class="btn btn-ghost btn-full" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat('${cat.id}')">Eliminar categoría</button>`;
+    html+=`<button class="btn btn-ghost btn-full" data-catid="${cat.id}" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat(this.dataset.catid)">Eliminar categoría</button>`;
     html+='</div>';
   });
   // Nueva categoría
