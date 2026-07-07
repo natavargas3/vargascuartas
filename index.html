@@ -475,17 +475,11 @@ function checkPin(){
   function ask(){
     var input=prompt('Vargas Cuartas\nIngresa tu PIN de acceso:');
     if(input===null){ask();return;}
-    if(input===getPin()){askUser();return;}
+    if(input===getPin()){return;}
     attempts++;
     alert('PIN incorrecto. Intento '+attempts+' de 3.');
     if(attempts<3){ask();}
     else{alert('Demasiados intentos. Recarga la página.');document.body.innerHTML='<div style="background:#0f0f0f;color:#ff6b6b;height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-size:18px">Acceso bloqueado. Recarga la página.</div>';}
-  }
-  function askUser(){
-    var saved=localStorage.getItem('vc-user');
-    if(saved)return; // already set
-    var who=confirm('¿Quién eres?\n\nOK = Nata\nCancelar = Santi');
-    localStorage.setItem('vc-user',who?'Nata':'Santi');
   }
   ask();
 }
@@ -661,12 +655,12 @@ onValue(dbRef,snap=>{
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
     if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
     if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
-    if(localDashMonth===undefined){localDashMonth=localRepMonth;localDashYear=localRepYear;}
-    // Always open on current month
-    localDashMonth=new Date().getMonth();
-    localDashYear=new Date().getFullYear();
-    localRepMonth=new Date().getMonth();
-    localRepYear=new Date().getFullYear();
+    if(isFirst){
+      localDashMonth=new Date().getMonth();
+      localDashYear=new Date().getFullYear();
+      localRepMonth=new Date().getMonth();
+      localRepYear=new Date().getFullYear();
+    }
     // migrate China name
     (S.bolsillos||[]).forEach(b=>{if(b.name==='China ✈')b.name='Viaje internacional ✈';});
     currentFilter=S.dashFilter||'mes';
@@ -895,19 +889,11 @@ function renderDashboard(){
   else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
   else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
   const showSaldar=!saldado&&anyPaid&&Math.abs(bal.net)>=1000;
-  // Detail breakdown — collapsible
-  const detalle=`<div onclick="event.stopPropagation();toggleBalDetail()" style="cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--t3)">
-    <span id="bal-detail-arrow" style="transition:transform .2s;display:inline-block">▶</span> ver desglose
-  </div>
-  <div id="bal-detail-body" style="display:none;font-size:11px;color:var(--t3);margin-top:8px;line-height:1.8">
-    Santi debe a Nata: <span style="color:var(--santi);font-family:'DM Mono',monospace">${fmt(bal.santiDebeANata||0)}</span><br>
-    Nata debe a Santi: <span style="color:var(--nata);font-family:'DM Mono',monospace">${fmt(bal.nataDebeASanti||0)}</span>
-  </div>`;
 
   document.getElementById('dash-balance-hero').innerHTML=`
     <div class="bal-hero">
       <div class="bal-ttl">balance de aportes · ${MONTHS[localDashMonth]}</div>
-      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}${detalle}</div>
+      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}</div>
       ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
       <div class="bal-col">
         <div class="bal-col-name">Nata pagó</div>
@@ -1038,14 +1024,6 @@ window.toggleItemDetail=function(id){
   const wasOpen=el.classList.contains('open');
   document.querySelectorAll('.disc-item-detail.open').forEach(d=>{if(d.id!==id)d.classList.remove('open');});
   el.classList.toggle('open',!wasOpen);
-};
-window.toggleBalDetail=function(){
-  const body=document.getElementById('bal-detail-body');
-  const arrow=document.getElementById('bal-detail-arrow');
-  if(!body)return;
-  const isOpen=body.style.display==='block';
-  body.style.display=isOpen?'none':'block';
-  if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
 };
 window.toggleActivityLog=function(){
   const body=document.getElementById('activity-body');
