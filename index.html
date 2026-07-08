@@ -233,9 +233,6 @@ textarea{resize:vertical;min-height:70px}
 a{color:var(--accent);text-decoration:none}
 ::-webkit-scrollbar{width:0}
 .empty{text-align:center;padding:20px;color:var(--t3);font-size:13px}
-.dash-mnav{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.dash-mnav-btn{background:none;border:none;color:var(--t2);font-size:18px;padding:4px 8px;cursor:pointer}
-.dash-mnav-label{font-size:14px;font-weight:500;color:var(--t2)}
 .sync-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t3);font-family:'DM Mono',monospace;background:var(--s2);border-radius:20px;padding:4px 10px;margin-bottom:14px}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--t4)}
 .sync-dot.on{background:var(--accent)}.sync-dot.saving{background:var(--amber);animation:blink 1s infinite}
@@ -256,12 +253,7 @@ a{color:var(--accent);text-decoration:none}
 <div class="main" id="mscroll">
 
 <!-- DASHBOARD -->
-<div id="page-dashboard" class="page active">
-  <div class="dash-mnav">
-    <button class="dash-mnav-btn" onclick="chDM(-1)">←</button>
-    <span class="dash-mnav-label" id="dml"></span>
-    <button class="dash-mnav-btn" onclick="chDM(1)">→</button>
-  </div>
+<div id="page-dashboard" class="page">
   <div class="pg-title">Dashboard</div>
   <div class="sync-pill"><div class="sync-dot on" id="sdot"></div><span id="slbl">sincronizado</span></div>
 
@@ -273,7 +265,6 @@ a{color:var(--accent);text-decoration:none}
     <div class="fpill" onclick="setFilter('anio',this)">Este año</div>
   </div>
 
-  <div id="dash-balance-hero"></div>
   <div class="mg2" id="dash-metrics"></div>
 
   <div class="card" style="margin-top:12px">
@@ -295,7 +286,7 @@ a{color:var(--accent);text-decoration:none}
 </div>
 
 <!-- REPORTE -->
-<div id="page-reporte" class="page">
+<div id="page-reporte" class="page active">
   <div class="pg-title">Reporte mensual</div>
   <div class="mnav">
     <button class="mnav-btn" onclick="chM(-1)">←</button>
@@ -305,6 +296,8 @@ a{color:var(--accent);text-decoration:none}
   <div class="mg3" id="rep-metrics"></div>
   <button class="btn btn-full" onclick="closeMonth()" style="margin-bottom:16px">Cerrar mes → bolsillos</button>
   <div id="rep-body"></div>
+  <div id="rep-balance-hero" style="margin-top:8px"></div>
+  <div style="height:40px"></div>
 </div>
 
 <!-- BOLSILLOS -->
@@ -374,13 +367,13 @@ a{color:var(--accent);text-decoration:none}
 </div>
 
 <nav class="bot-nav">
-  <button class="bot-btn active" onclick="showPage('dashboard',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
-    <span>Inicio</span><div class="bot-dot"></div>
-  </button>
-  <button class="bot-btn" onclick="showPage('reporte',this)">
+  <button class="bot-btn active" onclick="showPage('reporte',this)">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><path d="M3 5h14M3 10h9M3 15h12"/></svg>
     <span>Reporte</span><div class="bot-dot"></div>
+  </button>
+  <button class="bot-btn" onclick="showPage('dashboard',this)">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
+    <span>Dashboard</span><div class="bot-dot"></div>
   </button>
   <button class="bot-btn" onclick="showPage('bolsillos',this)">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 3"/></svg>
@@ -656,8 +649,6 @@ onValue(dbRef,snap=>{
     if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
     if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
     if(isFirst){
-      localDashMonth=new Date().getMonth();
-      localDashYear=new Date().getFullYear();
       localRepMonth=new Date().getMonth();
       localRepYear=new Date().getFullYear();
     }
@@ -695,9 +686,7 @@ const trm=()=>S.trm||4200;
 const natIng=()=>S.nataUSD*trm()-2000000;
 const sanIng=()=>S.santiUSD*trm()+2000000;
 const repKey=()=>`${localRepYear}-${localRepMonth}`;
-const dashKey=()=>`${localDashYear}-${localDashMonth}`;
 const getRep=()=>{const k=repKey();if(!S.reportes)S.reportes={};if(!S.reportes[k])S.reportes[k]={items:{},closed:false};return S.reportes[k];};
-const getDashRep=()=>{const k=dashKey();if(!S.reportes||!S.reportes[k])return{items:{},closed:false};return S.reportes[k];};
 
 function getSplit(item){
   const b=item.budget||0;
@@ -781,6 +770,18 @@ function computeBalance(rep){
   return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net,santiDebeANata,nataDebeASanti};
 }
 
+function computeBalanceByCat(rep){
+  return(S.cats||[]).filter(cat=>cat.id!=='nata-personal'&&cat.id!=='santi-personal'&&!cat.soloPersonal).map(cat=>{
+    let budget=0,natPaid=0,sanPaid=0;
+    (cat.items||[]).forEach(item=>{
+      if(item.split==='nata'||item.split==='santi')return;
+      const paid=getPaidFromRep(item.id,rep);
+      budget+=item.budget;natPaid+=paid.nata;sanPaid+=paid.santi;
+    });
+    return{name:cat.name,budget,natPaid,sanPaid};
+  }).filter(c=>c.budget>0);
+}
+
 function allItems(){return(S.cats||[]).flatMap(c=>c.items||[]);}
 
 // FILTER
@@ -800,8 +801,6 @@ window.showPage=function(p,btn){
   renderAll();applyInputs();
 };
 // Local month state — NOT saved to Firebase to avoid reset bug
-let localDashMonth=new Date().getMonth();
-let localDashYear=new Date().getFullYear();
 let localRepMonth=new Date().getMonth();
 let localRepYear=new Date().getFullYear();
 
@@ -810,12 +809,6 @@ window.chM=function(dir){
   if(localRepMonth>11){localRepMonth=0;localRepYear++;}
   if(localRepMonth<0){localRepMonth=11;localRepYear--;}
   renderReporte();
-};
-window.chDM=function(dir){
-  localDashMonth+=dir;
-  if(localDashMonth>11){localDashMonth=0;localDashYear++;}
-  if(localDashMonth<0){localDashMonth=11;localDashYear--;}
-  renderDashboard();
 };
 
 function bar(v,max,cls='ba'){const p=pct(v,max);return`<div class="bar"><div class="bar-f ${cls}" style="width:${p}%"></div></div>`;}
@@ -843,9 +836,6 @@ window.handlePhoto=async function(inputId,labelId,urlId){
 
 // DASHBOARD
 function renderDashboard(){
-  const dashRep=getDashRep();
-  document.getElementById('dml').textContent=`${MONTHS[localDashMonth]} ${localDashYear}`;
-
   // Activity log
   const actBody=document.getElementById('activity-body');
   if(actBody){
@@ -876,38 +866,6 @@ function renderDashboard(){
   document.getElementById('dash-metrics').innerHTML=`
     <div class="met ${excTotal>=0?'hi':'warn'}"><div class="met-l">excedente ${currentFilter==='mes'?'mes':currentFilter}</div><div class="met-v">${fmtM(excTotal)}</div><div class="met-s">vs presupuesto</div></div>
     <div class="met blue"><div class="met-l">bolsillos totales</div><div class="met-v">${fmtM(bolTotal)}</div><div class="met-s">acumulado</div></div>`;
-
-  // BALANCE (always current month)
-  const bal=computeBalance(dashRep);
-  const mkkey=`${localDashYear}-${localDashMonth}`;
-  const saldado=S.saldos&&S.saldos[mkkey];
-  const anyPaid=bal.natPaid>0||bal.sanPaid>0;
-  let heroMsg='',heroCls='bal-none';
-  if(saldado){heroMsg=`Saldado el ${saldado} ✓`;heroCls='bal-even';}
-  else if(!anyPaid){heroMsg='Sin pagos registrados aún.';heroCls='bal-none';}
-  else if(Math.abs(bal.net)<1000){heroMsg='Están parejos ✓';heroCls='bal-even';}
-  else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
-  else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
-  const showSaldar=!saldado&&anyPaid&&Math.abs(bal.net)>=1000;
-
-  document.getElementById('dash-balance-hero').innerHTML=`
-    <div class="bal-hero">
-      <div class="bal-ttl">balance de aportes · ${MONTHS[localDashMonth]}</div>
-      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}</div>
-      ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
-      <div class="bal-col">
-        <div class="bal-col-name">Nata pagó</div>
-        <div class="bal-paid" style="color:var(--nata)">${fmt(bal.natPaid)}</div>
-        <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:4px"><span>ítems cubiertos</span><span style="font-family:'DM Mono',monospace">${bal.natPaidItems}/${bal.natItems} · ${pct(bal.natPaidItems,bal.natItems)}%</span></div>
-        <div class="bar" style="height:5px">${bar(bal.natPaidItems,bal.natItems,'bnt')}</div>
-      </div>
-      <div class="bal-col">
-        <div class="bal-col-name">Santi pagó</div>
-        <div class="bal-paid" style="color:var(--santi)">${fmt(bal.sanPaid)}</div>
-        <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:4px"><span>ítems cubiertos</span><span style="font-family:'DM Mono',monospace">${bal.sanPaidItems}/${bal.sanItems} · ${pct(bal.sanPaidItems,bal.sanItems)}%</span></div>
-        <div class="bar" style="height:5px">${bar(bal.sanPaidItems,bal.sanItems,'bst')}</div>
-      </div>
-    </div>`;
 
   // DISCLOSURE CATS with period comparison
   const catHtml=(S.cats||[]).filter(c=>c.id!=='nata-personal'&&c.id!=='santi-personal').map((cat,ci)=>{
@@ -1025,6 +983,14 @@ window.toggleItemDetail=function(id){
   document.querySelectorAll('.disc-item-detail.open').forEach(d=>{if(d.id!==id)d.classList.remove('open');});
   el.classList.toggle('open',!wasOpen);
 };
+window.toggleBalDetail=function(){
+  const body=document.getElementById('bal-detail-body');
+  const arrow=document.getElementById('bal-detail-arrow');
+  if(!body)return;
+  const isOpen=body.style.display==='block';
+  body.style.display=isOpen?'none':'block';
+  if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+};
 window.toggleActivityLog=function(){
   const body=document.getElementById('activity-body');
   const arrow=document.getElementById('activity-arrow');
@@ -1034,14 +1000,14 @@ window.toggleActivityLog=function(){
   if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
 };
 window.marcarSaldado=function(){
-  const key=`${localDashYear}-${localDashMonth}`;
+  const key=`${localRepYear}-${localRepMonth}`;
   if(!S.saldos)S.saldos={};
   S.saldos[key]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
-  logActivity(`marcó ${MONTHS[localDashMonth]} como saldado`);
+  logActivity(`marcó ${MONTHS[localRepMonth]} como saldado`);
   syncR();
 };
 window.desmarcarSaldado=function(){
-  const key=`${localDashYear}-${localDashMonth}`;
+  const key=`${localRepYear}-${localRepMonth}`;
   if(S.saldos&&S.saldos[key])delete S.saldos[key];
   syncR();
 };
@@ -1071,68 +1037,9 @@ function renderReporte(){
 
   let html='';
   (S.cats||[]).forEach(cat=>{
-    const isNata=cat.id==='nata-personal',isSanti=cat.id==='santi-personal';
-    const isPrestamos=cat.isPrestamos||false;
+    if(cat.id==='santi-personal'||cat.isPrestamos)return;
+    const isNata=cat.id==='nata-personal';
     let catBudget=0,catPaid=0;
-
-    // PRESTAMOS — special render
-    if(isPrestamos){
-      const prestHtml=(cat.items||[]).length===0?'<div class="empty">Sin préstamos registrados</div>':(cat.items||[]).map(item=>{
-        const paid=getItemPaid(item.id);
-        const hasPaid=paid.entries.length>0;
-        const quien=item.split==='nata'?'Nata':'Santiago';
-        const debedor=item.split==='nata'?'Santiago':'Nata';
-        const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
-          <div class="entry-item">
-            <div class="entry-top">
-              <div><div style="font-size:14px;font-weight:500">${fmt(e.monto)}</div><div style="font-size:12px;color:var(--t3)">${e.nota||'—'}</div></div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-                <span class="bdg ${e.quien==='Nata'?'bn':'bs'}">${e.quien} prestó</span>
-                <button class="btn-danger" onclick="removeEntry(${item.id},${ei})">× eliminar</button>
-              </div>
-            </div>
-            <div class="entry-meta"><span style="font-size:11px;color:var(--t3)">${e.fecha||''}</span></div>
-          </div>`).join('')}</div>`:'';
-        return`<div class="rep-item">
-          <div class="rep-main" onclick="toggleD('rd-${item.id}')">
-            <div class="chk ${hasPaid?'paid':''}"></div>
-            <div>
-              <div style="font-size:15px">${item.name}</div>
-              <div style="font-size:12px;color:var(--t3)">${quien} prestó → ${debedor} debe · ${fmt(paid.total||0)}</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
-          </div>
-          <div class="rep-detail" id="rd-${item.id}">
-            ${entriesHtml}
-            <div style="background:var(--s3);border-radius:var(--rs);padding:14px">
-              <div style="font-size:12px;font-weight:500;color:var(--t2);margin-bottom:12px">Registrar préstamo</div>
-              <div class="fg" style="margin-bottom:10px"><div class="fl">monto (COP) *</div>
-                <div class="monto-wrap"><input type="number" id="em-${item.id}" placeholder="0" oninput="checkBtn(${item.id})"><div class="monto-chk" id="echk-${item.id}" onclick="applyCheck(${item.id},${item.budget||0})"></div></div>
-              </div>
-              <div class="fg" style="margin-bottom:10px"><div class="fl">quién prestó *</div>
-                <select id="eq-${item.id}" onchange="checkBtn(${item.id})"><option value="">— elegir —</option><option>Nata</option><option>Santiago</option></select>
-              </div>
-              <div class="fg" style="margin-bottom:10px"><div class="fl">nota</div><input type="text" id="en-${item.id}" placeholder="ej: chaqueta, emergencia..."></div>
-              <div class="fg" style="margin-bottom:14px"><div class="fl">comprobante</div>
-                <label class="photo-btn" onclick="triggerPhoto('ep-${item.id}')">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="8" cy="8" r="2.5"/><path d="M5 3l1-2h4l1 2"/></svg>
-                  <span id="epl-${item.id}">Adjuntar foto</span>
-                </label>
-                <input type="file" id="ep-${item.id}" accept="image/*" onchange="handlePhoto('ep-${item.id}','epl-${item.id}','epu-${item.id}')">
-                <input type="hidden" id="epu-${item.id}">
-              </div>
-              <button class="btn btn-a btn-full" id="ebtn-${item.id}" onclick="addEntry(${item.id},0,'')" disabled>+ Registrar préstamo</button>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-      html+=`<div class="cat-section">
-        <div class="cat-hdr"><span>${cat.name}</span></div>
-        <div class="card" style="padding:4px 14px">${prestHtml}</div>
-        <button class="btn btn-ghost btn-full" style="margin-top:4px;font-size:12px" onclick="addPrestamoItem()">+ Agregar préstamo</button>
-      </div>`;
-      return;
-    }
     const itemsHtml=(cat.items||[]).map(item=>{
       if(!item.anual)catBudget+=item.budget;
       const paid=getItemPaid(item.id);catPaid+=paid.total;
@@ -1146,7 +1053,7 @@ function renderReporte(){
       const exc=item.budget-paid.total;
       const excHtml=hasPaid?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${exc>=0?'+':''}${fmt(exc)}</span>`:'';
       const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70% Santi':item.split==='nata'||item.split==='nata100'?'Nata':item.split==='santi100'?'Santi prestó':'Santi';
-      const autoQuien=isNata?'Nata':isSanti?'Santiago':item.split==='nata'?'Nata':item.split==='santi'?'Santiago':item.split==='nata100'?'Nata':item.split==='santi100'?'Santiago':'';
+      const autoQuien=isNata?'Nata':item.split==='nata'?'Nata':item.split==='santi'?'Santiago':item.split==='nata100'?'Nata':item.split==='santi100'?'Santiago':'';
       const anualBadge=isAnual?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
@@ -1212,6 +1119,62 @@ function renderReporte(){
     </div>`;
   });
   document.getElementById('rep-body').innerHTML=html;
+
+  // BALANCE for the selected report month
+  const rep=getRep();
+  const bal=computeBalance(rep);
+  const mkkey=`${localRepYear}-${localRepMonth}`;
+  const saldado=S.saldos&&S.saldos[mkkey];
+  const anyPaid=bal.natPaid>0||bal.sanPaid>0;
+  let heroMsg='',heroCls='bal-none';
+  if(saldado){heroMsg=`Saldado el ${saldado} ✓`;heroCls='bal-even';}
+  else if(!anyPaid){heroMsg='Sin pagos registrados aún.';heroCls='bal-none';}
+  else if(Math.abs(bal.net)<1000){heroMsg='Están parejos ✓';heroCls='bal-even';}
+  else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
+  else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
+  const showSaldar=!saldado&&anyPaid&&Math.abs(bal.net)>=1000;
+
+  // Category breakdown for balance
+  const balByCat=computeBalanceByCat(rep);
+  const catBalHtml=balByCat.map(c=>{
+    const sPct=c.budget>0?Math.min(100,Math.round(c.sanPaid/c.budget*100)):0;
+    const nPct=c.budget>0?Math.min(100-sPct,Math.round(c.natPaid/c.budget*100)):0;
+    return`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span>${c.name}</span>
+        <span style="color:var(--t3);font-family:'DM Mono',monospace">${fmt(c.budget)}</span>
+      </div>
+      <div class="bar" style="height:6px;position:relative">
+        <div style="position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--santi);width:${sPct}%"></div>
+        <div style="position:absolute;left:${sPct}%;top:0;height:100%;border-radius:2px;background:var(--nata);width:${nPct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('rep-balance-hero').innerHTML=`
+    <div class="bal-hero">
+      <div class="bal-ttl">balance de aportes · ${MONTHS[localRepMonth]}</div>
+      <div class="bal-main ${heroCls}" style="white-space:pre-line;cursor:pointer" onclick="toggleBalDetail()">${heroMsg}
+        <div style="font-size:11px;font-weight:400;margin-top:8px;opacity:.75"><span id="bal-detail-arrow" style="display:inline-block;transition:transform .2s">▶</span> ver desglose por categoría</div>
+      </div>
+      ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
+      <div id="bal-detail-body" style="display:none">
+        <div class="bal-col">
+          <div class="bal-col-name">Nata pagó</div>
+          <div class="bal-paid" style="color:var(--nata)">${fmt(bal.natPaid)}</div>
+          <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:4px"><span>ítems cubiertos</span><span style="font-family:'DM Mono',monospace">${bal.natPaidItems}/${bal.natItems} · ${pct(bal.natPaidItems,bal.natItems)}%</span></div>
+          <div class="bar" style="height:5px">${bar(bal.natPaidItems,bal.natItems,'bnt')}</div>
+        </div>
+        <div class="bal-col">
+          <div class="bal-col-name">Santi pagó</div>
+          <div class="bal-paid" style="color:var(--santi)">${fmt(bal.sanPaid)}</div>
+          <div style="font-size:11px;color:var(--t3);display:flex;justify-content:space-between;margin-bottom:4px"><span>ítems cubiertos</span><span style="font-family:'DM Mono',monospace">${bal.sanPaidItems}/${bal.sanItems} · ${pct(bal.sanPaidItems,bal.sanItems)}%</span></div>
+          <div class="bar" style="height:5px">${bar(bal.sanPaidItems,bal.sanItems,'bst')}</div>
+        </div>
+        <div class="bal-col-name" style="margin-top:4px">por categoría</div>
+        ${catBalHtml||'<div style="font-size:12px;color:var(--t3)">Sin datos este mes.</div>'}
+      </div>
+    </div>`;
 }
 
 window.applyCheck=function(itemId,budget){
@@ -1574,28 +1537,16 @@ window.delItem=function(catRef,itemRef){
   const ii=(cat.items||[]).findIndex(it=>it.id===itemRef);
   const item=cat?.items?.[ii];
   if(!item)return;
-  if(!item.custom){alert('Este ítem es parte del sistema base y no se puede eliminar. Solo puedes eliminar ítems que tú hayas agregado.');return;}
-  // Check if item has report data
-  const rep=getRep();
+  // Check if item has report data in any month
   const k=`i${item.id}`;
-  const hasData=rep.items&&rep.items[k]&&rep.items[k].entries&&rep.items[k].entries.length>0;
-  if(hasData){alert(`No puedes eliminar "${item.name}" porque tiene gastos registrados en el reporte de este mes. Elimina los gastos primero.`);return;}
+  const hasData=Object.values(S.reportes||{}).some(rep=>rep.items&&rep.items[k]&&rep.items[k].entries&&rep.items[k].entries.length>0);
+  if(hasData){alert(`No puedes eliminar "${item.name}" porque tiene gastos registrados. Elimina los gastos primero.`);return;}
   if(confirm(`¿Eliminar "${item.name}"?`)){
     logActivity(`eliminó el ítem "${item.name}"`);
     cat.items.splice(ii,1);syncR();
   }
 };
 
-window.addPrestamoItem=function(){
-  const n=prompt('Nombre del préstamo (ej: Chaqueta Nata):');
-  if(!n)return;
-  const quien=confirm('¿Nata prestó a Santiago?\n\nOK = Nata prestó\nCancelar = Santiago prestó');
-  const prestamosCat=S.cats.find(c=>c.isPrestamos);
-  if(!prestamosCat)return;
-  if(!prestamosCat.items)prestamosCat.items=[];
-  prestamosCat.items.push({id:S.nextId++,name:n,budget:0,split:quien?'nata':'santi'});
-  syncR();
-};
 window.delBol=function(i){
   const bol=S.bolsillos[i];
   if(!bol)return;
