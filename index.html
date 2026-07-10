@@ -641,6 +641,8 @@ onValue(dbRef,snap=>{
     if(!S.activityLog)S.activityLog=[];
     // Fix isPrestamos flag for existing data
     S.cats.forEach(c=>{if(c.id==='prestamos')c.isPrestamos=true;});
+    // Fix: Firebase drops empty arrays on write, so cat.items can come back undefined
+    S.cats.forEach(c=>{if(!c.items)c.items=[];});
     // Fix: mark items of custom categories as custom if missing (e.g. 'test' item)
     S.cats.forEach(c=>{if(c.custom)(c.items||[]).forEach(it=>{if(it.custom===undefined)it.custom=true;});});
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
