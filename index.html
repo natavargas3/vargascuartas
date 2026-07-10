@@ -390,6 +390,17 @@ a{color:var(--accent);text-decoration:none}
 </nav>
 </div>
 
+<div class="modal-bg" id="catbal-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl" id="catbal-modal-ttl">Categoría</div>
+    <div id="catbal-modal-body"></div>
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeCatBalModal()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -616,6 +627,7 @@ const DEFAULT={
 window.S=JSON.parse(JSON.stringify(DEFAULT));
 let saveTimeout=null,isFirst=true;
 let currentFilter='mes';
+let lastBalByCat=[];
 
 // PIN managed by standalone script above
 
@@ -645,6 +657,12 @@ onValue(dbRef,snap=>{
     S.cats.forEach(c=>{if(!c.items)c.items=[];});
     // Fix: mark items of custom categories as custom if missing (e.g. 'test' item)
     S.cats.forEach(c=>{if(c.custom)(c.items||[]).forEach(it=>{if(it.custom===undefined)it.custom=true;});});
+    // Ensure the two fixed Prestamos subcategories exist
+    const prestCat=S.cats.find(c=>c.isPrestamos);
+    if(prestCat){
+      if(!prestCat.items.find(it=>it.split==='nata100'))prestCat.items.push({id:S.nextId++,name:'Santi debe a Nata',budget:0,split:'nata100'});
+      if(!prestCat.items.find(it=>it.split==='santi100'))prestCat.items.push({id:S.nextId++,name:'Nata debe a Santi',budget:0,split:'santi100'});
+    }
     // Fix: reset acumulado for direct bolsillos since they compute from reportes
     S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
     if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
@@ -774,14 +792,22 @@ function computeBalance(rep){
 
 function computeBalanceByCat(rep){
   return(S.cats||[]).filter(cat=>cat.id!=='nata-personal'&&cat.id!=='santi-personal'&&!cat.soloPersonal).map(cat=>{
-    let budget=0,natPaid=0,sanPaid=0;
+    let budget=0,natPaid=0,sanPaid=0,natShould=0,sanShould=0;
     (cat.items||[]).forEach(item=>{
       if(item.split==='nata'||item.split==='santi')return;
       const paid=getPaidFromRep(item.id,rep);
-      budget+=item.budget;natPaid+=paid.nata;sanPaid+=paid.santi;
+      const totalPagado=paid.nata+paid.santi;
+      budget+=item.budget;
+      natPaid+=paid.nata;sanPaid+=paid.santi;
+      if(item.split==='nata100'){sanShould+=paid.nata;return;} // Santi debe devolver lo que Nata prestó
+      if(item.split==='santi100'){natShould+=paid.santi;return;} // Nata debe devolver lo que Santi prestó
+      let ratioNata=0.5,ratioSanti=0.5;
+      if(item.split==='70-30'){ratioNata=0.3;ratioSanti=0.7;}
+      natShould+=totalPagado*ratioNata;sanShould+=totalPagado*ratioSanti;
     });
-    return{name:cat.name,budget,natPaid,sanPaid};
-  }).filter(c=>c.budget>0);
+    const net=natPaid-natShould; // positive: Santi le debe a Nata · negative: Nata le debe a Santi
+    return{name:cat.name,budget,natPaid,sanPaid,natShould,sanShould,net};
+  }).filter(c=>c.budget>0||c.natPaid>0||c.sanPaid>0);
 }
 
 function allItems(){return(S.cats||[]).flatMap(c=>c.items||[]);}
@@ -993,6 +1019,39 @@ window.toggleBalDetail=function(){
   body.style.display=isOpen?'none':'block';
   if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
 };
+window.openCatBalModal=function(ci){
+  const c=lastBalByCat[ci];
+  if(!c)return;
+  const totalPagado=c.natPaid+c.sanPaid;
+  const net=c.net;
+  const netHtml=Math.abs(net)<1000
+    ?`<div class="bal-main bal-even" style="font-size:14px">Están parejos en esta categoría ✓</div>`
+    :net>0
+      ?`<div class="bal-main bal-owe" style="font-size:14px;white-space:pre-line">Santiago le debe a Nata\n${fmt(net)}</div>`
+      :`<div class="bal-main bal-owe" style="font-size:14px;white-space:pre-line">Nata le debe a Santiago\n${fmt(Math.abs(net))}</div>`;
+  document.getElementById('catbal-modal-ttl').textContent=c.name;
+  document.getElementById('catbal-modal-body').innerHTML=`
+    <div style="font-size:12px;color:var(--t3);margin-bottom:14px">Presupuesto: ${fmt(c.budget)} · Total pagado: ${fmt(totalPagado)}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="bal-col">
+        <div class="bal-col-name" style="color:var(--nata)">Nata</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:2px">le corresponde</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:10px">${fmt(c.natShould)}</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:2px">pagó</div>
+        <div style="font-size:15px;font-weight:600;color:var(--nata)">${fmt(c.natPaid)}</div>
+      </div>
+      <div class="bal-col">
+        <div class="bal-col-name" style="color:var(--santi)">Santi</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:2px">le corresponde</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:10px">${fmt(c.sanShould)}</div>
+        <div style="font-size:11px;color:var(--t3);margin-bottom:2px">pagó</div>
+        <div style="font-size:15px;font-weight:600;color:var(--santi)">${fmt(c.sanPaid)}</div>
+      </div>
+    </div>
+    ${netHtml}`;
+  document.getElementById('catbal-modal-bg').classList.add('open');
+};
+window.closeCatBalModal=function(){document.getElementById('catbal-modal-bg')?.classList.remove('open');};
 window.toggleActivityLog=function(){
   const body=document.getElementById('activity-body');
   const arrow=document.getElementById('activity-arrow');
@@ -1011,6 +1070,27 @@ window.marcarSaldado=function(){
 window.desmarcarSaldado=function(){
   const key=`${localRepYear}-${localRepMonth}`;
   if(S.saldos&&S.saldos[key])delete S.saldos[key];
+  syncR();
+};
+window.pasarAPrestamos=function(){
+  const rep=getRep();
+  const bal=computeBalance(rep);
+  if(Math.abs(bal.net)<1000)return;
+  const prestCat=S.cats.find(c=>c.isPrestamos);
+  if(!prestCat)return;
+  const item=bal.net>0?prestCat.items.find(it=>it.split==='nata100'):prestCat.items.find(it=>it.split==='santi100');
+  if(!item)return;
+  const monto=Math.round(Math.abs(bal.net));
+  const quien=item.split==='nata100'?'Nata':'Santiago';
+  if(!confirm(`¿Pasar ${fmt(monto)} a préstamos (${item.name}) y marcar ${MONTHS[localRepMonth]} como saldado?`))return;
+  if(!rep.items)rep.items={};
+  const k=`i${item.id}`;
+  if(!rep.items[k])rep.items[k]={entries:[]};
+  rep.items[k].entries.push({monto,quien,nota:`Balance de ${MONTHS[localRepMonth]} trasladado a préstamo`,photoUrl:'',fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})});
+  logActivity(`pasó el balance de ${MONTHS[localRepMonth]} (${fmt(monto)}) a préstamos`);
+  const mkkey=`${localRepYear}-${localRepMonth}`;
+  if(!S.saldos)S.saldos={};
+  S.saldos[mkkey]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
   syncR();
 };
 
@@ -1039,7 +1119,7 @@ function renderReporte(){
 
   let html='';
   (S.cats||[]).forEach(cat=>{
-    if(cat.id==='santi-personal'||cat.isPrestamos)return;
+    if(cat.id==='santi-personal')return;
     const isNata=cat.id==='nata-personal';
     let catBudget=0,catPaid=0;
     const itemsHtml=(cat.items||[]).map(item=>{
@@ -1138,10 +1218,11 @@ function renderReporte(){
 
   // Category breakdown for balance
   const balByCat=computeBalanceByCat(rep);
-  const catBalHtml=balByCat.map(c=>{
+  lastBalByCat=balByCat;
+  const catBalHtml=balByCat.map((c,ci)=>{
     const sPct=c.budget>0?Math.min(100,Math.round(c.sanPaid/c.budget*100)):0;
     const nPct=c.budget>0?Math.min(100-sPct,Math.round(c.natPaid/c.budget*100)):0;
-    return`<div style="margin-bottom:10px">
+    return`<div style="margin-bottom:10px;cursor:pointer" onclick="openCatBalModal(${ci})">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span>${c.name}</span>
         <span style="color:var(--t3);font-family:'DM Mono',monospace">${fmt(c.budget)}</span>
@@ -1159,7 +1240,7 @@ function renderReporte(){
       <div class="bal-main ${heroCls}" style="white-space:pre-line;cursor:pointer" onclick="toggleBalDetail()">${heroMsg}
         <div style="font-size:11px;font-weight:400;margin-top:8px;opacity:.75"><span id="bal-detail-arrow" style="display:inline-block;transition:transform .2s">▶</span> ver desglose por categoría</div>
       </div>
-      ${showSaldar?`<button class="btn btn-full" style="margin-bottom:12px" onclick="marcarSaldado()">✓ Marcar como saldado</button>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
+      ${showSaldar?`<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn btn-full" onclick="marcarSaldado()">✓ Marcar como saldado</button><button class="btn btn-full" onclick="pasarAPrestamos()">→ Pasar a préstamos</button></div>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
       <div id="bal-detail-body" style="display:none">
         <div class="bal-col">
           <div class="bal-col-name">Nata pagó</div>
@@ -1671,7 +1752,8 @@ window.saveModal=function(){
   closeModal();syncR();
 };
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-bg'))closeModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+document.getElementById('catbal-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('catbal-modal-bg'))closeCatBalModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeCatBalModal();}});
 </script>
 </body>
 </html>
