@@ -759,8 +759,17 @@ function computeBalance(rep){
       const paid=getPaidFromRep(item.id,rep);
       if(!paid.entries.length)return;
       if(item.split==='nata'||item.split==='santi')return;
-      if(item.split==='nata100'){santiDebeANata+=paid.nata;return;}
-      if(item.split==='santi100'){nataDebeASanti+=paid.santi;return;}
+      natPaid+=paid.nata;sanPaid+=paid.santi;
+      if(item.split==='nata100'){
+        santiDebeANata+=paid.nata;
+        natItems++;if(paid.nata>0)natPaidItems++;
+        return;
+      }
+      if(item.split==='santi100'){
+        nataDebeASanti+=paid.santi;
+        sanItems++;if(paid.santi>0)sanPaidItems++;
+        return;
+      }
 
       const totalPagado=paid.nata+paid.santi;
       if(totalPagado===0)return;
@@ -772,7 +781,6 @@ function computeBalance(rep){
       const debeNata=totalPagado*ratioNata;
       const debeSanti=totalPagado*ratioSanti;
 
-      natPaid+=paid.nata;sanPaid+=paid.santi;
       if(ratioNata>0)natItems++;if(ratioSanti>0)sanItems++;
       if(paid.nata>0)natPaidItems++;if(paid.santi>0)sanPaidItems++;
 
@@ -912,11 +920,18 @@ function renderDashboard(){
         catPaidTotal+=getPaidFromRep(item.id,rep).total;
       });
     });
+    const isPrest=cat.isPrestamos;
     const catExc=catBudgetTotal-catPaidTotal;
     const over=catPaidTotal>catBudgetTotal;
     const barCls=over?'br':'ba';
-    // Month bars for category
-    const monthBars=months.map(mo=>{
+    // Month bars for category (skipped for Prestamos — no budget baseline to compare against)
+    const monthBars=isPrest?months.map(mo=>{
+      const rep=getRepForKey(mo.key);
+      let mp=0;
+      (cat.items||[]).forEach(item=>{mp+=getPaidFromRep(item.id,rep).total;});
+      return`<div class="month-bar-row"><span class="month-label">${mo.label}</span><div class="month-bars"></div><span class="month-amounts" style="color:var(--t2)">${mp>0?fmtM(mp):'—'}</span></div>`;
+    }).join('')
+      :months.map(mo=>{
       const rep=getRepForKey(mo.key);
       let mb=0,mp=0;
       (cat.items||[]).forEach(item=>{mb+=item.budget;mp+=getPaidFromRep(item.id,rep).total;});
@@ -943,7 +958,9 @@ function renderDashboard(){
         const mb=item.budget;
         const p=mb>0?Math.min(120,Math.round(mp/mb*100)):0;
         const isO=mp>mb;
-        return`<div class="month-bar-row">
+        return isPrest
+          ?`<div class="month-bar-row"><span class="month-label">${mo.label}</span><div class="month-bars"></div><span class="month-amounts" style="color:var(--t2)">${mp>0?fmtM(mp):'—'}</span></div>`
+          :`<div class="month-bar-row">
           <span class="month-label">${mo.label}</span>
           <div class="month-bars">
             <div class="month-bar-budget" style="height:4px;background:var(--s4);border-radius:2px;position:relative"><div style="height:4px;border-radius:2px;width:${Math.min(100,p)}%;background:${isO?'var(--red)':'var(--accent)'};position:absolute;top:0;left:0"></div></div>
@@ -954,10 +971,10 @@ function renderDashboard(){
       return`<div class="disc-item" onclick="toggleItemDetail('idet-${ci}-${ii}')">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px">${item.name}</span>
-          <span class="${iOver?'exc-neg':'exc-pos'}" style="font-size:12px">${ip>0?(iExc>=0?'+':'')+fmtM(iExc):'—'}</span>
+          <span class="${isPrest?'':iOver?'exc-neg':'exc-pos'}" style="font-size:12px;color:${isPrest?'var(--t2)':''}">${ip>0?(isPrest?fmtM(ip):(iExc>=0?'+':'')+fmtM(iExc)):'—'}</span>
         </div>
         <div class="disc-item-detail" id="idet-${ci}-${ii}">
-          <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:8px;margin-top:4px">PRESUP. ${fmt(item.budget)}/mes</div>
+          ${isPrest?'':`<div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:8px;margin-top:4px">PRESUP. ${fmt(item.budget)}/mes</div>`}
           ${itemMonthBars}
         </div>
       </div>`;
@@ -967,17 +984,19 @@ function renderDashboard(){
       <div class="disc-cat-hdr" onclick="toggleDiscCat('dcat-${ci}')">
         <div style="flex:1">
           <div style="font-size:13px;font-weight:500;margin-bottom:6px">${cat.name}</div>
-          <div class="bar" style="height:5px"><div class="bar-f ${barCls}" style="width:${Math.min(100,pct(catPaidTotal,catBudgetTotal))}%"></div></div>
+          ${isPrest?'':`<div class="bar" style="height:5px"><div class="bar-f ${barCls}" style="width:${Math.min(100,pct(catPaidTotal,catBudgetTotal))}%"></div></div>`}
         </div>
         <div style="text-align:right;margin-left:12px;flex-shrink:0">
-          <div class="${over?'exc-neg':'exc-pos'}" style="font-size:13px;font-weight:500">${catPaidTotal>0?(catExc>=0?'+':'')+fmtM(catExc):'—'}</div>
-          <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">${fmt(catBudgetTotal)} total</div>
+          ${isPrest
+            ?`<div style="font-size:13px;font-weight:500;color:var(--t2)">${catPaidTotal>0?fmtM(catPaidTotal)+' movidos':'—'}</div>`
+            :`<div class="${over?'exc-neg':'exc-pos'}" style="font-size:13px;font-weight:500">${catPaidTotal>0?(catExc>=0?'+':'')+fmtM(catExc):'—'}</div>
+          <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">${fmt(catBudgetTotal)} total</div>`}
         </div>
         <span class="disc-arrow">▶</span>
       </div>
       <div class="disc-cat-body">
         <div style="padding:12px 14px;background:var(--s2);border-bottom:1px solid var(--b1)">
-          <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:8px">MES A MES · PRESUP. ${fmtM(catBudgetTotal/months.length)}/mes</div>
+          ${isPrest?'':`<div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:8px">MES A MES · PRESUP. ${fmtM(catBudgetTotal/months.length)}/mes</div>`}
           ${monthBars}
         </div>
         ${itemsHtml}
