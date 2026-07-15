@@ -401,6 +401,48 @@ a{color:var(--accent);text-decoration:none}
   </div>
 </div>
 
+<div class="modal-bg" id="qexp-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl" id="qexp-modal-ttl">Agregar gasto</div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">subcategoría</div>
+      <select id="qexp-item" onchange="updateQexpQuien()"></select>
+    </div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">monto (COP) *</div>
+      <input type="number" id="qexp-m" placeholder="0">
+    </div>
+
+    <div class="fg" id="qexp-quien-wrap" style="margin-bottom:16px">
+      <div class="fl">quién pagó *</div>
+      <select id="qexp-q"><option value="">— elegir —</option><option>Nata</option><option>Santiago</option></select>
+    </div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">nota</div>
+      <input type="text" id="qexp-n" placeholder="descripción del gasto...">
+    </div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">comprobante (foto)</div>
+      <label class="photo-btn" onclick="triggerPhoto('qexp-photo')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="8" cy="8" r="2.5"/><path d="M5 3l1-2h4l1 2"/></svg>
+        <span id="qexp-photo-label">Adjuntar foto</span>
+      </label>
+      <input type="file" id="qexp-photo" accept="image/*" onchange="handlePhoto('qexp-photo','qexp-photo-label','qexp-photo-url')">
+      <input type="hidden" id="qexp-photo-url">
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeQexpModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" onclick="saveQexp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -618,7 +660,7 @@ const DEFAULT={
   ],
   casaDeudas:[
     {id:1,name:'Administración',total:50000000},{id:2,name:'Hacienda',total:120000000},
-    {id:3,name:'Abogados',total:3500000},{id:4,name:'John',total:52000000},
+    {id:3,name:'Abogados',total:3500000},{id:4,name:'John',total:162000000},
     {id:5,name:'Paola',total:162000000},{id:6,name:'Papá Carlos',total:345000000},
   ],
   casaPagos:[],reportes:{},nextId:400,activityLog:[],
@@ -628,6 +670,11 @@ window.S=JSON.parse(JSON.stringify(DEFAULT));
 let saveTimeout=null,isFirst=true;
 let currentFilter='mes';
 let lastBalByCat=[];
+let openRepCats=new Set();
+window.toggleRepCat=function(catId){
+  if(openRepCats.has(catId))openRepCats.delete(catId);else openRepCats.add(catId);
+  document.getElementById(`repcat-${catId}`)?.classList.toggle('open');
+};
 
 // PIN managed by standalone script above
 
@@ -805,11 +852,14 @@ function computeBalance(rep){
   return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net,santiDebeANata,nataDebeASanti};
 }
 
+const SPLIT_LABELS={'50-50':'50% - 50%','70-30':'30% Nata - 70% Santi','nata100':'100% Nata','santi100':'100% Santi'};
 function computeBalanceByCat(rep){
   return(S.cats||[]).filter(cat=>cat.id!=='nata-personal'&&cat.id!=='santi-personal'&&!cat.soloPersonal).map(cat=>{
     let budget=0,natPaid=0,sanPaid=0,natShould=0,sanShould=0;
+    const splits=new Set();
     (cat.items||[]).forEach(item=>{
       if(item.split==='nata'||item.split==='santi')return;
+      splits.add(item.split);
       const paid=getPaidFromRep(item.id,rep);
       const totalPagado=paid.nata+paid.santi;
       budget+=item.budget;
@@ -821,7 +871,8 @@ function computeBalanceByCat(rep){
       natShould+=totalPagado*ratioNata;sanShould+=totalPagado*ratioSanti;
     });
     const net=natPaid-natShould; // positive: Santi le debe a Nata · negative: Nata le debe a Santi
-    return{name:cat.name,budget,natPaid,sanPaid,natShould,sanShould,net};
+    const splitLabel=splits.size===1?(SPLIT_LABELS[[...splits][0]]||''):splits.size>1?'mixto':'';
+    return{name:cat.name,budget,natPaid,sanPaid,natShould,sanShould,net,splitLabel};
   }).filter(c=>c.budget>0||c.natPaid>0||c.sanPaid>0);
 }
 
@@ -1055,7 +1106,7 @@ window.openCatBalModal=function(ci){
     :net>0
       ?`<div class="bal-main bal-owe" style="font-size:14px;white-space:pre-line">Santiago le debe a Nata\n${fmt(net)}</div>`
       :`<div class="bal-main bal-owe" style="font-size:14px;white-space:pre-line">Nata le debe a Santiago\n${fmt(Math.abs(net))}</div>`;
-  document.getElementById('catbal-modal-ttl').textContent=c.name;
+  document.getElementById('catbal-modal-ttl').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>${c.name}</span>${c.splitLabel?`<span class="bdg bam" style="font-size:10px;white-space:nowrap">${c.splitLabel}</span>`:''}</div>`;
   document.getElementById('catbal-modal-body').innerHTML=`
     <div style="font-size:12px;color:var(--t3);margin-bottom:14px">${c.budget>0?`Presupuesto: ${fmt(c.budget)} · `:''}Total pagado: ${fmt(totalPagado)}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
@@ -1146,7 +1197,6 @@ function renderReporte(){
   let html='';
   (S.cats||[]).forEach(cat=>{
     if(cat.id==='santi-personal')return;
-    const isNata=cat.id==='nata-personal';
     let catBudget=0,catPaid=0;
     const itemsHtml=(cat.items||[]).map(item=>{
       if(!item.anual)catBudget+=item.budget;
@@ -1162,7 +1212,6 @@ function renderReporte(){
       const exc=item.budget-paid.total;
       const excHtml=(hasPaid&&!isLoan)?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${exc>=0?'+':''}${fmt(exc)}</span>`:'';
       const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70% Santi':item.split==='nata'?'Nata':item.split==='nata100'?'Nata presta':item.split==='santi100'?'Santi presta':'Santi';
-      const autoQuien=isNata?'Nata':item.split==='nata'?'Nata':item.split==='santi'?'Santiago':item.split==='nata100'?'Nata':item.split==='santi100'?'Santiago':'';
       const anualBadge=isAnual?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
@@ -1172,21 +1221,17 @@ function renderReporte(){
               <div style="font-size:14px;font-weight:500">${fmt(e.monto)}</div>
               <div style="font-size:12px;color:var(--t3)">${e.nota||'—'}</div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-              <span class="bdg ${e.quien==='Nata'?'bn':'bs'}">${e.quien}</span>
-              <button class="btn-danger" onclick="removeEntry(${item.id},${ei})">× eliminar</button>
-            </div>
+            <span class="bdg ${e.quien==='Nata'?'bn':'bs'}">${e.quien}</span>
           </div>
-          <div class="entry-meta">
-            <span style="font-size:11px;color:var(--t3)">${e.fecha||''}</span>
-            ${e.photoUrl?`<a href="${e.photoUrl}" target="_blank">📎 comprobante</a>`:''}
-            ${e.link&&!e.photoUrl?`<a href="${e.link}" target="_blank">ver comprobante</a>`:''}
+          <div class="entry-meta" style="justify-content:space-between">
+            <div style="display:flex;gap:10px;align-items:center">
+              <span style="font-size:11px;color:var(--t3)">${e.fecha||''}</span>
+              ${e.photoUrl?`<a href="${e.photoUrl}" target="_blank" style="font-size:11px">📎 comprobante</a>`:''}
+              ${e.link&&!e.photoUrl?`<a href="${e.link}" target="_blank" style="font-size:11px">ver comprobante</a>`:''}
+            </div>
+            <button class="btn-danger" onclick="removeEntry(${item.id},${ei})">× eliminar</button>
           </div>
         </div>`).join('')}</div>`:'';
-
-      const quienField=autoQuien
-        ?`<div style="padding:12px 14px;background:var(--s3);border-radius:var(--rx);font-size:15px;color:var(--t3)">${autoQuien}</div><input type="hidden" id="eq-${item.id}" value="${autoQuien}">`
-        :`<select id="eq-${item.id}" onchange="checkBtn(${item.id})"><option value="">— quién pagó —</option><option>Nata</option><option>Santiago</option></select>`;
 
       return`<div class="rep-item">
         <div class="rep-main" onclick="toggleD('rd-${item.id}')">
@@ -1195,29 +1240,7 @@ function renderReporte(){
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
         </div>
         <div class="rep-detail" id="rd-${item.id}">
-          ${entriesHtml}
-          <div style="background:var(--s3);border-radius:var(--rs);padding:14px">
-            <div style="font-size:12px;font-weight:500;color:var(--t2);margin-bottom:12px">Registrar pago</div>
-            <div class="fg" style="margin-bottom:10px">
-              <div class="fl">monto (COP) *</div>
-              <div class="monto-wrap">
-                <input type="number" id="em-${item.id}" placeholder="${isLoan?'0':item.budget}" oninput="checkBtn(${item.id})">
-                ${isLoan?'':`<div class="monto-chk" id="echk-${item.id}" onclick="applyCheck(${item.id},${item.budget})"></div>`}
-              </div>
-              ${isLoan?'':`<div style="font-size:11px;color:var(--t3);margin-top:4px">Toca ○ para usar el presupuesto (${fmt(item.budget)})</div>`}
-            </div>
-            ${!autoQuien?`<div class="fg" style="margin-bottom:10px"><div class="fl">quién pagó *</div>${quienField}</div>`:`<div style="margin-bottom:10px">${quienField}</div>`}
-            <div class="fg" style="margin-bottom:10px"><div class="fl">nota</div><input type="text" id="en-${item.id}" placeholder="descripción del gasto..."></div>
-            <div class="fg" style="margin-bottom:10px"><div class="fl">comprobante (foto)</div>
-              <label class="photo-btn" onclick="triggerPhoto('ep-${item.id}')">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="8" cy="8" r="2.5"/><path d="M5 3l1-2h4l1 2"/></svg>
-                <span id="epl-${item.id}">Adjuntar foto</span>
-              </label>
-              <input type="file" id="ep-${item.id}" accept="image/*" onchange="handlePhoto('ep-${item.id}','epl-${item.id}','epu-${item.id}')">
-              <input type="hidden" id="epu-${item.id}">
-            </div>
-            <button class="btn btn-a btn-full" id="ebtn-${item.id}" onclick="addEntry(${item.id},${item.budget},'${autoQuien}')" disabled>+ Registrar pago</button>
-          </div>
+          ${entriesHtml||'<div style="font-size:12px;color:var(--t3)">Sin pagos registrados aún.</div>'}
         </div>
       </div>`;
     }).join('');
@@ -1225,9 +1248,19 @@ function renderReporte(){
     const catHdrRight=cat.isPrestamos
       ?(catPaid>0?`<span style="font-size:10px;color:var(--t3)">${fmt(catPaid)} movidos</span>`:'')
       :`<span style="font-size:10px;color:var(--t3)">${fmt(catBudget)}</span>${catPaid>0?`<span class="${catExc>=0?'exc-pos':'exc-neg'}">${catExc>=0?'+':''}${fmt(catExc)}</span>`:''}`;
-    html+=`<div class="cat-section">
-      <div class="cat-hdr"><span>${cat.name}</span><span style="display:flex;gap:8px;align-items:center">${catHdrRight}</span></div>
-      <div class="card" style="padding:4px 14px">${itemsHtml}</div>
+    const isOpen=openRepCats.has(cat.id);
+    html+=`<div class="disc-cat rep-cat${isOpen?' open':''}" id="repcat-${cat.id}">
+      <div class="disc-cat-hdr" onclick="toggleRepCat('${cat.id}')">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.name}</div>
+        </div>
+        <div style="text-align:right;margin-right:8px;flex-shrink:0;display:flex;gap:6px;align-items:center">${catHdrRight}</div>
+        <button class="btn btn-xs" onclick="event.stopPropagation();openQuickExp('${cat.id}')" style="flex-shrink:0">+</button>
+        <span class="disc-arrow" style="margin-left:8px">▶</span>
+      </div>
+      <div class="disc-cat-body">
+        <div style="padding:4px 14px">${itemsHtml}</div>
+      </div>
     </div>`;
   });
   document.getElementById('rep-body').innerHTML=html;
@@ -1298,20 +1331,6 @@ function renderReporte(){
     </div>`;
 }
 
-window.applyCheck=function(itemId,budget){
-  const chk=document.getElementById(`echk-${itemId}`),inp=document.getElementById(`em-${itemId}`);
-  if(!chk||!inp)return;
-  const isOn=chk.classList.contains('on');
-  if(isOn){chk.classList.remove('on');inp.value='';}else{chk.classList.add('on');inp.value=budget;}
-  checkBtn(itemId);
-};
-window.checkBtn=function(itemId){
-  const monto=parseFloat(document.getElementById(`em-${itemId}`)?.value)||0;
-  const quienEl=document.getElementById(`eq-${itemId}`);
-  const quien=quienEl?quienEl.value||quienEl.getAttribute('value')||'':'';
-  const btn=document.getElementById(`ebtn-${itemId}`);
-  if(btn)btn.disabled=!(monto>0&&quien&&quien!=='— quién pagó —');
-};
 window.toggleD=function(id){
   const el=document.getElementById(id);if(!el)return;
   const isOpen=el.classList.contains('open');
@@ -1343,29 +1362,56 @@ function computeBolsilloAcumulado(bolName){
   return{computed:total,reporteLog:logEntries};
 }
 
-window.addEntry=function(itemId,budget,autoQuien){
-  const monto=parseFloat(document.getElementById(`em-${itemId}`)?.value)||budget;
-  const quienEl=document.getElementById(`eq-${itemId}`);
-  const quien=autoQuien||quienEl?.value||'';
-  const nota=document.getElementById(`en-${itemId}`)?.value||'';
-  const photoUrl=document.getElementById(`epu-${itemId}`)?.value||'';
-  if(!monto||!quien||quien==='— quién pagó —')return;
+let qexpCatId=null;
+window.openQuickExp=function(catId){
+  qexpCatId=catId;
+  const cat=S.cats.find(c=>c.id===catId);
+  if(!cat)return;
+  document.getElementById('qexp-modal-ttl').textContent=`Agregar gasto · ${cat.name}`;
+  const sel=document.getElementById('qexp-item');
+  sel.innerHTML=`<option value="">— seleccionar —</option>`+(cat.items||[]).map(it=>`<option value="${it.id}">${it.name}</option>`).join('');
+  document.getElementById('qexp-m').value='';
+  document.getElementById('qexp-n').value='';
+  document.getElementById('qexp-photo-url').value='';
+  document.getElementById('qexp-photo-label').textContent='Adjuntar foto';
+  updateQexpQuien();
+  document.getElementById('qexp-modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('qexp-item').focus(),100);
+};
+window.updateQexpQuien=function(){
+  const cat=S.cats.find(c=>c.id===qexpCatId);
+  const itemId=parseInt(document.getElementById('qexp-item')?.value);
+  const item=cat?.items?.find(i=>i.id===itemId);
+  const isNata=cat?.id==='nata-personal';
+  const autoQuien=isNata?'Nata':item?.split==='nata'?'Nata':item?.split==='santi'?'Santiago':item?.split==='nata100'?'Nata':item?.split==='santi100'?'Santiago':'';
+  const wrap=document.getElementById('qexp-quien-wrap');
+  if(!wrap)return;
+  wrap.innerHTML=autoQuien
+    ?`<div class="fl">quién pagó</div><div style="padding:12px 14px;background:var(--s3);border-radius:var(--rx);font-size:15px;color:var(--t3)">${autoQuien}</div><input type="hidden" id="qexp-q" value="${autoQuien}">`
+    :`<div class="fl">quién pagó *</div><select id="qexp-q"><option value="">— elegir —</option><option>Nata</option><option>Santiago</option></select>`;
+};
+window.closeQexpModal=function(){document.getElementById('qexp-modal-bg')?.classList.remove('open');};
+window.saveQexp=function(){
+  const itemId=parseInt(document.getElementById('qexp-item')?.value);
+  const monto=parseFloat(document.getElementById('qexp-m')?.value)||0;
+  const quien=document.getElementById('qexp-q')?.value||'';
+  const nota=document.getElementById('qexp-n')?.value||'';
+  const photoUrl=document.getElementById('qexp-photo-url')?.value||'';
+  if(!itemId){alert('Selecciona una subcategoría.');return;}
+  if(!monto||!quien){alert('Completa el monto y quién pagó.');return;}
   const rep=getRep();
   if(!rep.items)rep.items={};
   const k=`i${itemId}`;
   if(!rep.items[k])rep.items[k]={entries:[]};
-  const entry={monto,quien,nota,photoUrl,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})};
-  rep.items[k].entries.push(entry);
-  // Deuda tracking
+  rep.items[k].entries.push({monto,quien,nota,photoUrl,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})});
   const item=allItems().find(i=>i.id===itemId);
   if(item&&item.name==='Deuda a Santiago'&&quien==='Nata'){S.deuNataPagado=(S.deuNataPagado||0)+monto;}
-  // For direct bolsillos: acumulado is computed from reportes, no need to update here
-  // BUT if item has a bolsillo config not in BOLSILLO_MAP, update it directly
   if(item&&item.bolsillo&&!BOLSILLO_MAP[item.name]){
     const bol=S.bolsillos.find(b=>b.name===item.bolsillo);
     if(bol){if(!bol.log)bol.log=[];bol.acumulado=(bol.acumulado||0)+monto;bol.log.push({desc:`${item.name} · ${MONTHS[localRepMonth]}`,obs:nota,monto,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'abono'});}
   }
   logActivity(`agregó pago de ${item?.name||'ítem'}: ${fmt(monto)}`);
+  closeQexpModal();
   syncR();
 };
 
@@ -1791,7 +1837,8 @@ window.saveModal=function(){
 };
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-bg'))closeModal();});
 document.getElementById('catbal-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('catbal-modal-bg'))closeCatBalModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeCatBalModal();}});
+document.getElementById('qexp-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('qexp-modal-bg'))closeQexpModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeCatBalModal();closeQexpModal();}});
 </script>
 </body>
 </html>
