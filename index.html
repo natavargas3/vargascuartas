@@ -269,7 +269,7 @@ a{color:var(--accent);text-decoration:none}
 
   <div class="card" style="margin-top:12px">
     <div onclick="toggleActivityLog()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
-      <span class="card-ttl">actividad reciente</span>
+      <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600">🕒 Actividad reciente</span>
       <span id="activity-arrow" style="font-size:11px;color:var(--t3);transition:transform .2s">▶</span>
     </div>
     <div id="activity-body" style="display:none;margin-top:12px" data-rendered="false"></div>
@@ -287,14 +287,19 @@ a{color:var(--accent);text-decoration:none}
 
 <!-- REPORTE -->
 <div id="page-reporte" class="page active">
-  <div class="pg-title">Reporte mensual</div>
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div class="pg-title">Reporte mensual</div>
+    <button class="btn btn-sm" onclick="showPage('dashboard',this)" style="display:flex;align-items:center;gap:6px">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" width="14" height="14"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
+      Dashboard
+    </button>
+  </div>
   <div class="mnav">
     <button class="mnav-btn" onclick="chM(-1)">←</button>
     <span class="mnav-label" id="mlabel"></span>
     <button class="mnav-btn" onclick="chM(1)">→</button>
   </div>
   <div class="mg3" id="rep-metrics"></div>
-  <button class="btn btn-full" onclick="closeMonth()" style="margin-bottom:16px">Cerrar mes → bolsillos</button>
   <div id="rep-body"></div>
   <div id="rep-balance-hero" style="margin-top:8px"></div>
   <div style="height:40px"></div>
@@ -302,15 +307,12 @@ a{color:var(--accent);text-decoration:none}
 
 <!-- BOLSILLOS -->
 <div id="page-bolsillos" class="page">
-  <div class="pg-title">Bolsillos</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+    <div class="pg-title" style="margin-bottom:0">Bolsillos</div>
+    <button class="btn btn-sm btn-a" onclick="openAddBolModal()">+ Agregar bolsillo</button>
+  </div>
   <div class="pg-sub">Guarda en CDT, Nu o Global66 generando interés.</div>
   <div id="bol-list"></div>
-  <div class="card">
-    <div class="card-ttl" style="margin-bottom:14px">nuevo bolsillo</div>
-    <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nb-n" placeholder="ej: emergencias"></div>
-    <div class="fg" style="margin-bottom:14px"><div class="fl">meta mensual (COP)</div><input type="number" id="nb-m" placeholder="1000000"></div>
-    <button class="btn btn-a btn-full" onclick="addBol()">+ Crear bolsillo</button>
-  </div>
 </div>
 
 <!-- CASA 51 -->
@@ -345,7 +347,10 @@ a{color:var(--accent);text-decoration:none}
 
 <!-- CONFIG -->
 <div id="page-config" class="page">
-  <div class="pg-title">Configuración</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+    <div class="pg-title" style="margin-bottom:0">Configuración</div>
+    <button class="btn btn-sm btn-a" onclick="openAddCatModal()">+ Agregar categoría</button>
+  </div>
   <div class="pg-sub">Edita cualquier valor directamente.</div>
   <div class="card">
     <div class="card-ttl" style="margin-bottom:14px">ingresos y TRM</div>
@@ -353,6 +358,12 @@ a{color:var(--accent);text-decoration:none}
     <div class="fg" style="margin-bottom:10px"><div class="fl">Santiago (USD/mes)</div><input type="number" id="cfg-su" oninput="S.santiUSD=parseFloat(this.value)||5000;syncR()"></div>
     <div class="fg" style="margin-bottom:10px"><div class="fl">deuda Nata → Santiago (COP)</div><input type="number" id="cfg-deu" oninput="S.deudaNataSanti=parseFloat(this.value)||70000000;syncR()"></div>
     <div class="fg"><div class="fl">TRM USD → COP</div><div style="display:flex;align-items:center;gap:10px"><input type="number" id="trm" value="4200" oninput="S.trm=parseFloat(this.value)||4200;syncR()" style="max-width:140px"><span style="font-size:13px;color:var(--t3)">$/USD</span></div></div>
+  </div>
+  <div class="card">
+    <div class="card-ttl" style="margin-bottom:14px">¿quién eres?</div>
+    <div class="fg">
+      <select id="cfg-user" onchange="setCurrentUser(this.value)"><option value="Nata">Nata</option><option value="Santiago">Santiago</option></select>
+    </div>
   </div>
   <div class="card">
     <div class="card-ttl" style="margin-bottom:16px">cambiar PIN</div>
@@ -370,10 +381,6 @@ a{color:var(--accent);text-decoration:none}
   <button class="bot-btn active" onclick="showPage('reporte',this)">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><path d="M3 5h14M3 10h9M3 15h12"/></svg>
     <span>Reporte</span><div class="bot-dot"></div>
-  </button>
-  <button class="bot-btn" onclick="showPage('dashboard',this)">
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg>
-    <span>Dashboard</span><div class="bot-dot"></div>
   </button>
   <button class="bot-btn" onclick="showPage('bolsillos',this)">
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 3"/></svg>
@@ -443,6 +450,98 @@ a{color:var(--accent);text-decoration:none}
   </div>
 </div>
 
+<div class="modal-bg" id="saldar-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl">Marcar como saldado</div>
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">nota</div>
+      <input type="text" id="saldar-n" placeholder="ej: transferencia Nequi...">
+    </div>
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">comprobante (foto)</div>
+      <label class="photo-btn" onclick="triggerPhoto('saldar-photo')">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="14" height="10" rx="1.5"/><circle cx="8" cy="8" r="2.5"/><path d="M5 3l1-2h4l1 2"/></svg>
+        <span id="saldar-photo-label">Adjuntar foto</span>
+      </label>
+      <input type="file" id="saldar-photo" accept="image/*" onchange="handlePhoto('saldar-photo','saldar-photo-label','saldar-photo-url')">
+      <input type="hidden" id="saldar-photo-url">
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeSaldarModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" onclick="confirmSaldar()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="addcat-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl">Nueva categoría</div>
+    <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nc-n" placeholder="ej: Vehículo"></div>
+    <div class="fg" style="margin-bottom:16px"><div class="fl">tipo de gasto</div>
+      <select id="nc-s">
+        <option value="50-50">Común 50/50</option>
+        <option value="70-30">Homeschool 70% Santi / 30% Nata</option>
+        <option value="nata">Solo Nata</option>
+        <option value="santi">Solo Santi</option>
+      </select>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeAddCatModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" onclick="addCat()">+ Crear categoría</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="addbol-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl">Nuevo bolsillo</div>
+    <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nb-n" placeholder="ej: emergencias"></div>
+    <div class="fg" style="margin-bottom:16px"><div class="fl">meta mensual (COP)</div><input type="number" id="nb-m" placeholder="1000000"></div>
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeAddBolModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" onclick="addBol()">+ Crear bolsillo</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="bolap-modal-bg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-ttl" id="bolap-modal-ttl">Movimiento</div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">tipo</div>
+      <select id="bolap-tipo" onchange="updateBolApFields()">
+        <option value="aporte">Aportar — metí plata al bolsillo</option>
+        <option value="retiro">Retirar — saqué plata del bolsillo</option>
+      </select>
+    </div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl">monto (COP) *</div>
+      <input type="number" id="bolap-m" placeholder="0">
+    </div>
+
+    <div class="fg" id="bolap-quien-wrap" style="margin-bottom:16px">
+      <div class="fl">quién aporta *</div>
+      <select id="bolap-q"><option value="">— elegir —</option><option>Nata</option><option>Santiago</option></select>
+    </div>
+
+    <div class="fg" style="margin-bottom:16px">
+      <div class="fl" id="bolap-n-label">nota</div>
+      <input type="text" id="bolap-n" placeholder="nota...">
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn btn-full" onclick="closeBolApModal()">Cancelar</button>
+      <button class="btn btn-a btn-full" onclick="saveBolAporte()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <div class="modal-handle"></div>
@@ -483,26 +582,6 @@ a{color:var(--accent);text-decoration:none}
       <div class="toggle-wrap" onclick="toggleModal('m-anual')">
         <div class="toggle" id="m-anual-toggle"></div>
         <input type="hidden" id="m-anual" value="0">
-      </div>
-    </div>
-
-    <!-- Toggle ahorro -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
-      <div style="flex:1;padding-right:16px">
-        <div style="font-size:14px;font-weight:500;margin-bottom:2px">¿Es ahorro?</div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.5">Apagado = gasto normal. Prendido = el dinero pagado va directo a un bolsillo de ahorro.</div>
-      </div>
-      <div class="toggle-wrap" onclick="toggleModal('m-ahorro')">
-        <div class="toggle" id="m-ahorro-toggle"></div>
-        <input type="hidden" id="m-ahorro" value="0">
-      </div>
-    </div>
-
-    <div id="m-bolsillo-wrap" style="display:none;margin-bottom:16px">
-      <div class="fg">
-        <div class="fl">bolsillo destino</div>
-        <select id="m-bolsillo"></select>
-        <div style="font-size:11px;color:var(--t3);margin-top:4px">Al registrar el pago, el monto irá automáticamente a este bolsillo.</div>
       </div>
     </div>
 
@@ -614,49 +693,48 @@ const DEFAULT={
   dashFilter:'mes',
   saldos:{},
   cats:[
-    {id:'servicios',name:'Servicios',items:[
+    {id:'servicios',name:'Servicios',icon:'💡',items:[
       {id:1,name:'Luz',budget:219000,split:'50-50'},{id:2,name:'ETB',budget:200000,split:'50-50'},
       {id:3,name:'Agua',budget:190000,split:'50-50'},{id:4,name:'Gas',budget:80000,split:'50-50'},
       {id:5,name:'Administración',budget:430000,split:'50-50'},{id:6,name:'Norma',budget:2715000,split:'50-50'},
       {id:7,name:'Prima Norma',budget:226250,split:'50-50'},
     ]},
-    {id:'mercado',name:'Mercado',items:[
+    {id:'mercado',name:'Mercado',icon:'🛒',items:[
       {id:10,name:'Carne',budget:1300000,split:'50-50'},{id:11,name:'Fruver',budget:550000,split:'50-50'},
       {id:12,name:'Aseo',budget:150000,split:'50-50'},{id:13,name:'D1 varios',budget:500000,split:'50-50'},
     ]},
-    {id:'viajes',name:'Viajes y ocio',items:[
+    {id:'viajes',name:'Viajes y ocio',icon:'✈️',items:[
       {id:20,name:'Viaje internacional',budget:3000000,split:'50-50'},
       {id:21,name:'Ocio familiar',budget:2800000,split:'50-50'},
     ]},
-    {id:'hogar',name:'Hogar y otros',items:[
+    {id:'hogar',name:'Hogar y otros',icon:'🏠',items:[
       {id:30,name:'Impuestos',budget:458334,split:'50-50'},
       {id:31,name:'Mantenimiento y mobiliario',budget:2000000,split:'50-50'},
     ]},
-    {id:'homeschool',name:'Homeschool',items:[
+    {id:'homeschool',name:'Homeschool',icon:'🎒',items:[
       {id:40,name:'Profe',budget:4000000,split:'70-30'},{id:41,name:'Prima Profe',budget:333333,split:'70-30'},
       {id:42,name:'Materiales',budget:100000,split:'70-30'},{id:43,name:'Música Isa',budget:120000,split:'70-30'},
       {id:44,name:'Gimnasia Gaby',budget:350000,split:'70-30'},{id:45,name:'Naturaleza Gaby',budget:90000,split:'70-30'},
       {id:46,name:'Natación Gaby e Isa',budget:200000,split:'70-30'},
     ]},
-    {id:'nata-personal',name:'Personales Nata',items:[
+    {id:'nata-personal',name:'Personales Nata',icon:'👩',items:[
       {id:50,name:'Perros',budget:400000,split:'nata'},{id:51,name:'Personal',budget:500000,split:'nata'},
       {id:52,name:'Prepagada Nata',budget:400000,split:'nata'},{id:53,name:'Claro',budget:70000,split:'nata'},
       {id:54,name:'Deuda a Santiago',budget:2000000,split:'nata'},{id:55,name:'Reserva personal',budget:1500000,split:'nata'},
     ]},
-    {id:'santi-personal',name:'Personales Santiago',items:[
+    {id:'santi-personal',name:'Personales Santiago',icon:'👨',items:[
       {id:60,name:'Mamá + prepagada',budget:1900000,split:'santi'},{id:61,name:'Emilio',budget:3000000,split:'santi'},
       {id:62,name:'Prepagada niñas',budget:600000,split:'santi'},{id:63,name:'Seguridad social',budget:500000,split:'santi'},
       {id:64,name:'Gastos variables',budget:250000,split:'santi'},{id:65,name:'Claro',budget:70000,split:'santi'},
     ]},
-    {id:'prestamos',name:'Préstamos entre nosotros',isPrestamos:true,items:[]},
+    {id:'prestamos',name:'Préstamos entre nosotros',icon:'🔄',isPrestamos:true,items:[]},
   ],
   bolsillos:[
-    {id:1,name:'Viaje internacional ✈',metaMensual:3000000,acumulado:0,color:'accent',log:[],manual:true},
-    {id:2,name:'Prima Norma',metaMensual:226250,acumulado:0,color:'teal',log:[],manual:true},
-    {id:3,name:'Prima Profe',metaMensual:333333,acumulado:0,color:'teal',log:[],manual:true},
-    {id:4,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false},
-    {id:5,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false},
-    {id:6,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false},
+    {id:1,name:'Viaje internacional ✈',icon:'🧳',metaMensual:3000000,acumulado:0,color:'accent',log:[],manual:true},
+    {id:2,name:'Prima Norma',icon:'🎁',metaMensual:226250,acumulado:0,color:'teal',log:[],manual:true},
+    {id:3,name:'Prima Profe',icon:'🎁',metaMensual:333333,acumulado:0,color:'teal',log:[],manual:true},
+    {id:5,name:'Fondo Impuestos',icon:'🧾',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false},
+    {id:6,name:'Fondo Hogar',icon:'🏠',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false},
   ],
   casaDeudas:[
     {id:1,name:'Administración',total:50000000},{id:2,name:'Hacienda',total:120000000},
@@ -704,6 +782,12 @@ onValue(dbRef,snap=>{
     S.cats.forEach(c=>{if(!c.items)c.items=[];});
     // Fix: mark items of custom categories as custom if missing (e.g. 'test' item)
     S.cats.forEach(c=>{if(c.custom)(c.items||[]).forEach(it=>{if(it.custom===undefined)it.custom=true;});});
+    // Fix: agrega icono a categorias existentes que se crearon antes de tener este campo
+    const CAT_ICONS={servicios:'💡',mercado:'🛒',viajes:'✈️',hogar:'🏠',homeschool:'🎒','nata-personal':'👩','santi-personal':'👨',prestamos:'🔄'};
+    S.cats.forEach(c=>{if(!c.icon)c.icon=CAT_ICONS[c.id]||'📁';});
+    // Fix: agrega icono a bolsillos existentes que se crearon antes de tener este campo
+    const BOL_ICONS={'Viaje internacional ✈':'🧳','Prima Norma':'🎁','Prima Profe':'🎁','Fondo Impuestos':'🧾','Fondo Hogar':'🏠'};
+    (S.bolsillos||[]).forEach(b=>{if(!b.icon)b.icon=BOL_ICONS[b.name]||'💰';});
     // Ensure the two fixed Prestamos subcategories exist
     const prestCat=S.cats.find(c=>c.isPrestamos);
     if(prestCat){
@@ -717,11 +801,37 @@ onValue(dbRef,snap=>{
       const[p]=S.cats.splice(prestIdx,1);
       S.cats.splice(S.cats.findIndex(c=>c.id==='nata-personal'),0,p);
     }
-    // Fix: reset acumulado for direct bolsillos since they compute from reportes
-    S.bolsillos.forEach(b=>{if(Object.values(BOLSILLO_MAP).includes(b.name))b.acumulado=0;});
-    if(!S.bolsillos.find(b=>b.isExcedente))S.bolsillos.push({id:S.nextId++,name:'Excedentes comunes',metaMensual:0,acumulado:0,color:'blue',log:[],isExcedente:true,manual:false});
+    S.bolsillos=S.bolsillos.filter(b=>!b.isExcedente); // ya no existe (dependía del cierre de mes automático)
     if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
     if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
+    // Ahorros: los bolsillos ahora se manejan 100% manual (antes 'directos' se calculaban en vivo desde los reportes)
+    S.bolsillos.forEach(b=>{if(!b.split)b.split='50-50';if(!b.log)b.log=[];});
+    if(!S.bolsillosManualMigrated){
+      S.bolsillos.forEach(b=>{
+        if(Object.values(BOLSILLO_MAP).includes(b.name)){
+          const computed=computeBolsilloAcumulado(b.name);
+          const manualRetiros=(b.log||[]).filter(e=>e.tipo==='retiro'&&!e.fromReporte).reduce((s,e)=>s+e.monto,0);
+          b.acumulado=(computed?computed.computed:0)+manualRetiros;
+        }
+      });
+      S.bolsillosManualMigrated=true;
+    }
+    // Fix: el acumulado migrado de Prima Norma venia de gastos reales mal marcados como ahorro, no era un ahorro real
+    if(!S.primaNormaFixed){
+      const pn=S.bolsillos.find(b=>b.name==='Prima Norma');
+      if(pn)pn.acumulado=0;
+      S.primaNormaFixed=true;
+    }
+    // Fix: un bug viejo no restaba el retiro del acumulado en bolsillos que antes eran "directos" — recalcula desde el historial real
+    if(!S.bolsillosAcumRecalced){
+      S.bolsillos.forEach(b=>{b.acumulado=(b.log||[]).reduce((s,e)=>s+(e.monto||0),0);});
+      S.bolsillosAcumRecalced=true;
+    }
+    // Fix: item.bolsillo (ítem → bolsillo automático) ya no existe, ahora los bolsillos son 100% manuales
+    if(!S.itemBolsilloCleaned){
+      S.cats.forEach(c=>(c.items||[]).forEach(it=>{delete it.bolsillo;}));
+      S.itemBolsilloCleaned=true;
+    }
     if(isFirst){
       localRepMonth=new Date().getMonth();
       localRepYear=new Date().getFullYear();
@@ -743,6 +853,8 @@ window.syncR=function(){
 function applyInputs(){
   const els={trm:S.trm||4200,'cfg-nu':S.nataUSD||6500,'cfg-su':S.santiUSD||5000,'cfg-deu':S.deudaNataSanti||70000000};
   Object.entries(els).forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v;});
+  const userSel=document.getElementById('cfg-user');
+  if(userSel)userSel.value=getCurrentUser();
 }
 
 // HELPERS
@@ -750,6 +862,10 @@ const fmt=n=>'$'+Math.round(n).toLocaleString('es-CO');
 const fmtM=n=>{const m=Math.abs(n)/1000000;return(n<0?'-':'')+'$'+(m>=1?m.toFixed(1)+'M':Math.round(Math.abs(n)).toLocaleString('es-CO'));};
 
 function getCurrentUser(){return localStorage.getItem('vc-user')||'Nata';}
+window.setCurrentUser=function(u){
+  localStorage.setItem('vc-user',u);
+  renderAll();
+};
 function logActivity(action){
   if(!S.activityLog)S.activityLog=[];
   S.activityLog.unshift({user:getCurrentUser(),action,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})});
@@ -798,7 +914,6 @@ function getRepForKey(key){return S.reportes&&S.reportes[key]?S.reportes[key]:{i
 
 function computeBalance(rep){
   let santiDebeANata=0,nataDebeASanti=0,natPaid=0,sanPaid=0,natItems=0,sanItems=0,natPaidItems=0,sanPaidItems=0;
-  const debugLog=[];
   (S.cats||[]).forEach(cat=>{
     if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
     if(cat.soloPersonal)return;
@@ -835,20 +950,11 @@ function computeBalance(rep){
       const nataExceso=paid.nata-debeNata; // positive = Nata paid extra, Santi owes her
       const santiExceso=paid.santi-debeSanti; // positive = Santi paid extra, Nata owes him
 
-      if(nataExceso>0.5){
-        santiDebeANata+=nataExceso;
-        debugLog.push(`${item.name}: Nata pagó ${Math.round(paid.nata)}, debía ${Math.round(debeNata)}, Santi debe ${Math.round(nataExceso)}`);
-      }
-      if(santiExceso>0.5){
-        nataDebeASanti+=santiExceso;
-        debugLog.push(`${item.name}: Santi pagó ${Math.round(paid.santi)}, debía ${Math.round(debeSanti)}, Nata debe ${Math.round(santiExceso)}`);
-      }
+      if(nataExceso>0.5)santiDebeANata+=nataExceso;
+      if(santiExceso>0.5)nataDebeASanti+=santiExceso;
     });
   });
   const net=santiDebeANata-nataDebeASanti;
-  console.log('=== BALANCE DEBUG ===');
-  debugLog.forEach(l=>console.log(l));
-  console.log(`TOTAL: SantiDebeANata=${Math.round(santiDebeANata)}, NataDebeSanti=${Math.round(nataDebeASanti)}, NET=${Math.round(net)}`);
   return{natPaid,sanPaid,natItems,sanItems,natPaidItems,sanPaidItems,net,santiDebeANata,nataDebeASanti};
 }
 
@@ -951,28 +1057,25 @@ function renderDashboard(){
       totBudget+=item.budget;totPaid+=getPaidFromRep(item.id,rep).total;
     }));
   });
-  const excTotal=totBudget-totPaid;
-  const bolTotal=(S.bolsillos||[]).reduce((s,b)=>{
-    const isDirect=Object.values(BOLSILLO_MAP).includes(b.name);
-    if(isDirect){const c=computeBolsilloAcumulado(b.name);if(c){const retiros=(b.log||[]).filter(e=>e.tipo==='retiro'&&!e.fromReporte).reduce((ss,e)=>ss+e.monto,0);return s+c.computed+retiros;}return s+(b.acumulado||0);}
-    return s+(b.acumulado||0);
-  },0);
+  const bolTotal=(S.bolsillos||[]).reduce((s,b)=>s+(b.acumulado||0),0);
+  const overBudget=totPaid>totBudget;
   document.getElementById('dash-metrics').innerHTML=`
-    <div class="met ${excTotal>=0?'hi':'warn'}"><div class="met-l">excedente ${currentFilter==='mes'?'mes':currentFilter}</div><div class="met-v">${fmtM(excTotal)}</div><div class="met-s">vs presupuesto</div></div>
+    <div class="met ${overBudget?'warn':'hi'}"><div class="met-l">gastado ${currentFilter==='mes'?'mes':currentFilter}</div><div class="met-v">${fmtM(totPaid)}</div><div class="met-s">de ${fmtM(totBudget)} presupuestado</div></div>
     <div class="met blue"><div class="met-l">bolsillos totales</div><div class="met-v">${fmtM(bolTotal)}</div><div class="met-s">acumulado</div></div>`;
 
   // DISCLOSURE CATS with period comparison
   const catHtml=(S.cats||[]).filter(c=>c.id!=='nata-personal'&&c.id!=='santi-personal').map((cat,ci)=>{
-    let catBudgetTotal=0,catPaidTotal=0;
+    let catBudgetTotal=0,catPaidTotal=0,catNatMoved=0,catSanMoved=0;
     months.forEach(mo=>{
       const rep=getRepForKey(mo.key);
       (cat.items||[]).forEach(item=>{
         catBudgetTotal+=item.budget;
-        catPaidTotal+=getPaidFromRep(item.id,rep).total;
+        const paid=getPaidFromRep(item.id,rep);
+        catPaidTotal+=paid.total;
+        catNatMoved+=paid.nata;catSanMoved+=paid.santi;
       });
     });
     const isPrest=cat.isPrestamos;
-    const catExc=catBudgetTotal-catPaidTotal;
     const over=catPaidTotal>catBudgetTotal;
     const barCls=over?'br':'ba';
     // Month bars for category (skipped for Prestamos — no budget baseline to compare against)
@@ -1022,7 +1125,7 @@ function renderDashboard(){
       return`<div class="disc-item" onclick="toggleItemDetail('idet-${ci}-${ii}')">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px">${item.name}</span>
-          <span class="${isPrest?'':iOver?'exc-neg':'exc-pos'}" style="font-size:12px;color:${isPrest?'var(--t2)':''}">${ip>0?(isPrest?fmtM(ip):(iExc>=0?'+':'')+fmtM(iExc)):'—'}</span>
+          <span class="${isPrest?'':iOver?'exc-neg':'exc-pos'}" style="font-size:12px;color:${isPrest?'var(--t2)':''}">${ip>0?(isPrest?fmtM(ip):fmtM(iExc)):'—'}</span>
         </div>
         <div class="disc-item-detail" id="idet-${ci}-${ii}">
           ${isPrest?'':`<div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:8px;margin-top:4px">PRESUP. ${fmt(item.budget)}/mes</div>`}
@@ -1034,14 +1137,15 @@ function renderDashboard(){
     return`<div class="disc-cat" id="dcat-${ci}">
       <div class="disc-cat-hdr" onclick="toggleDiscCat('dcat-${ci}')">
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:500;margin-bottom:6px">${cat.name}</div>
-          ${isPrest?'':`<div class="bar" style="height:5px"><div class="bar-f ${barCls}" style="width:${Math.min(100,pct(catPaidTotal,catBudgetTotal))}%"></div></div>`}
+          <div style="font-size:13px;font-weight:500;margin-bottom:6px">${cat.icon||'📁'} ${cat.name}</div>
+          ${isPrest
+            ?(catPaidTotal>0?`<div class="bar" style="height:5px;position:relative;overflow:hidden"><div style="position:absolute;left:0;top:0;height:100%;background:var(--nata);width:${Math.round(catNatMoved/catPaidTotal*100)}%"></div><div style="position:absolute;right:0;top:0;height:100%;background:var(--santi);width:${Math.round(catSanMoved/catPaidTotal*100)}%"></div></div>`:'')
+            :`<div class="bar" style="height:5px"><div class="bar-f ${barCls}" style="width:${Math.min(100,pct(catPaidTotal,catBudgetTotal))}%"></div></div>`}
         </div>
         <div style="text-align:right;margin-left:12px;flex-shrink:0">
           ${isPrest
             ?`<div style="font-size:13px;font-weight:500;color:var(--t2)">${catPaidTotal>0?fmtM(catPaidTotal)+' movidos':'—'}</div>`
-            :`<div class="${over?'exc-neg':'exc-pos'}" style="font-size:13px;font-weight:500">${catPaidTotal>0?(catExc>=0?'+':'')+fmtM(catExc):'—'}</div>
-          <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">${fmt(catBudgetTotal)} total</div>`}
+            :`<div style="font-size:10px;color:var(--t3)">${fmtM(catPaidTotal)} / ${fmtM(catBudgetTotal)}</div>`}
         </div>
         <span class="disc-arrow">▶</span>
       </div>
@@ -1138,11 +1242,7 @@ window.toggleActivityLog=function(){
   if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
 };
 window.marcarSaldado=function(){
-  const key=`${localRepYear}-${localRepMonth}`;
-  if(!S.saldos)S.saldos={};
-  S.saldos[key]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
-  logActivity(`marcó ${MONTHS[localRepMonth]} como saldado`);
-  syncR();
+  openSaldarModal({type:'reporte'});
 };
 window.desmarcarSaldado=function(){
   const key=`${localRepYear}-${localRepMonth}`;
@@ -1167,7 +1267,88 @@ window.pasarAPrestamos=function(){
   logActivity(`pasó el balance de ${MONTHS[localRepMonth]} (${fmt(monto)}) a préstamos`);
   const mkkey=`${localRepYear}-${localRepMonth}`;
   if(!S.saldos)S.saldos={};
-  S.saldos[mkkey]=new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
+  S.saldos[mkkey]={fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),prestamo:true};
+  syncR();
+};
+
+// AHORROS: balance de aporte mensual por bolsillo, independiente del balance general
+function computeBolBalance(b){
+  const now=new Date();
+  const y=now.getFullYear(),m=now.getMonth();
+  let natAporte=0,sanAporte=0;
+  (b.log||[]).forEach(e=>{
+    if(e.tipo!=='abono'||e.year!==y||e.month!==m)return;
+    if(e.quien==='Nata')natAporte+=e.monto;else if(e.quien==='Santiago')sanAporte+=e.monto;
+  });
+  let ratioNata=0.5,ratioSanti=0.5;
+  if(b.split==='70-30'){ratioNata=0.3;ratioSanti=0.7;}
+  const totalAportado=natAporte+sanAporte;
+  const natShould=totalAportado*ratioNata,sanShould=totalAportado*ratioSanti;
+  const net=natAporte-natShould; // positive: Santi le debe a Nata
+  return{natAporte,sanAporte,natShould,sanShould,net,y,m};
+}
+window.marcarBolSaldado=function(bolId){
+  openSaldarModal({type:'bolsillo',bolId});
+};
+window.desmarcarBolSaldado=function(bolId){
+  const b=S.bolsillos.find(x=>x.id===bolId);if(!b)return;
+  const bal=computeBolBalance(b);
+  const key=`${bolId}-${bal.y}-${bal.m}`;
+  if(S.bolSaldos&&S.bolSaldos[key])delete S.bolSaldos[key];
+  syncR();
+};
+
+let saldarCtx=null;
+window.openSaldarModal=function(ctx){
+  saldarCtx=ctx;
+  document.getElementById('saldar-n').value='';
+  document.getElementById('saldar-photo-url').value='';
+  document.getElementById('saldar-photo-label').textContent='Adjuntar foto';
+  document.getElementById('saldar-modal-bg').classList.add('open');
+};
+window.closeSaldarModal=function(){document.getElementById('saldar-modal-bg')?.classList.remove('open');};
+window.confirmSaldar=function(){
+  const nota=document.getElementById('saldar-n')?.value||'';
+  const photoUrl=document.getElementById('saldar-photo-url')?.value||'';
+  const info={fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),nota,photoUrl};
+  if(saldarCtx?.type==='reporte'){
+    const key=`${localRepYear}-${localRepMonth}`;
+    if(!S.saldos)S.saldos={};
+    S.saldos[key]=info;
+    logActivity(`marcó ${MONTHS[localRepMonth]} como saldado`);
+  }else if(saldarCtx?.type==='bolsillo'){
+    const b=S.bolsillos.find(x=>x.id===saldarCtx.bolId);
+    if(b){
+      const bal=computeBolBalance(b);
+      if(!S.bolSaldos)S.bolSaldos={};
+      S.bolSaldos[`${b.id}-${bal.y}-${bal.m}`]=info;
+      logActivity(`marcó como saldado el ahorro de ${b.name}`);
+    }
+  }
+  closeSaldarModal();
+  syncR();
+};
+window.pasarBolAPrestamos=function(bolId){
+  const b=S.bolsillos.find(x=>x.id===bolId);if(!b)return;
+  const bal=computeBolBalance(b);
+  if(Math.abs(bal.net)<1000)return;
+  const prestCat=S.cats.find(c=>c.isPrestamos);if(!prestCat)return;
+  const item=bal.net>0?prestCat.items.find(it=>it.split==='nata100'):prestCat.items.find(it=>it.split==='santi100');
+  if(!item)return;
+  const monto=Math.round(Math.abs(bal.net));
+  const quien=item.split==='nata100'?'Nata':'Santiago';
+  if(!confirm(`¿Pasar ${fmt(monto)} a préstamos (${item.name}) por el ahorro de "${b.name}" y marcar el mes como saldado?`))return;
+  const repKey=`${bal.y}-${bal.m}`;
+  if(!S.reportes)S.reportes={};
+  if(!S.reportes[repKey])S.reportes[repKey]={items:{},closed:false};
+  const rep=S.reportes[repKey];
+  if(!rep.items)rep.items={};
+  const k=`i${item.id}`;
+  if(!rep.items[k])rep.items[k]={entries:[]};
+  rep.items[k].entries.push({monto,quien,nota:`Ahorro "${b.name}" trasladado a préstamo`,photoUrl:'',fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})});
+  logActivity(`pasó el ahorro de "${b.name}" (${fmt(monto)}) a préstamos`);
+  if(!S.bolSaldos)S.bolSaldos={};
+  S.bolSaldos[`${bolId}-${bal.y}-${bal.m}`]={fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),prestamo:true};
   syncR();
 };
 
@@ -1197,6 +1378,7 @@ function renderReporte(){
   let html='';
   (S.cats||[]).forEach(cat=>{
     if(cat.id==='santi-personal')return;
+    if(cat.id==='nata-personal'&&getCurrentUser()==='Santiago')return;
     let catBudget=0,catPaid=0;
     const itemsHtml=(cat.items||[]).map(item=>{
       if(!item.anual)catBudget+=item.budget;
@@ -1210,9 +1392,9 @@ function renderReporte(){
       });
       const isLoan=item.split==='nata100'||item.split==='santi100';
       const exc=item.budget-paid.total;
-      const excHtml=(hasPaid&&!isLoan)?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${exc>=0?'+':''}${fmt(exc)}</span>`:'';
+      const excHtml=(hasPaid&&!isLoan)?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${fmt(exc)}</span>`:'';
       const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70% Santi':item.split==='nata'?'Nata':item.split==='nata100'?'Nata presta':item.split==='santi100'?'Santi presta':'Santi';
-      const anualBadge=isAnual?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
+      const anualBadge=isAnual?`<span class="bdg ${paidThisYear?'bgrn':'byel'}" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
         <div class="entry-item">
@@ -1244,18 +1426,17 @@ function renderReporte(){
         </div>
       </div>`;
     }).join('');
-    const catExc=catBudget-catPaid;
     const catHdrRight=cat.isPrestamos
       ?(catPaid>0?`<span style="font-size:10px;color:var(--t3)">${fmt(catPaid)} movidos</span>`:'')
-      :`<span style="font-size:10px;color:var(--t3)">${fmt(catBudget)}</span>${catPaid>0?`<span class="${catExc>=0?'exc-pos':'exc-neg'}">${catExc>=0?'+':''}${fmt(catExc)}</span>`:''}`;
+      :`<span style="font-size:10px;color:var(--t3)">${fmt(catPaid)} / ${fmt(catBudget)}</span>`;
     const isOpen=openRepCats.has(cat.id);
     html+=`<div class="disc-cat rep-cat${isOpen?' open':''}" id="repcat-${cat.id}">
       <div class="disc-cat-hdr" onclick="toggleRepCat('${cat.id}')">
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.name}</div>
+          <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cat.icon||'📁'} ${cat.name}</div>
         </div>
         <div style="text-align:right;margin-right:8px;flex-shrink:0;display:flex;gap:6px;align-items:center">${catHdrRight}</div>
-        <button class="btn btn-xs" onclick="event.stopPropagation();openQuickExp('${cat.id}')" style="flex-shrink:0">+</button>
+        <button class="btn btn-xs" onclick="event.stopPropagation();openQuickExp('${cat.id}')" style="flex-shrink:0;border-color:var(--accent);color:var(--accent);font-weight:600">+</button>
         <span class="disc-arrow" style="margin-left:8px">▶</span>
       </div>
       <div class="disc-cat-body">
@@ -1272,7 +1453,7 @@ function renderReporte(){
   const saldado=S.saldos&&S.saldos[mkkey];
   const anyPaid=bal.natPaid>0||bal.sanPaid>0;
   let heroMsg='',heroCls='bal-none';
-  if(saldado){heroMsg=`Saldado el ${saldado} ✓`;heroCls='bal-even';}
+  if(saldado){heroMsg=`${saldado.prestamo?'Pasado a préstamos el':'Saldado el'} ${saldado.fecha||saldado} ✓${saldado.nota?'\n'+saldado.nota:''}`;heroCls='bal-even';}
   else if(!anyPaid){heroMsg='Sin pagos registrados aún.';heroCls='bal-none';}
   else if(Math.abs(bal.net)<1000){heroMsg='Están parejos ✓';heroCls='bal-even';}
   else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
@@ -1283,20 +1464,14 @@ function renderReporte(){
   const balByCat=computeBalanceByCat(rep);
   lastBalByCat=balByCat;
   const catBalHtml=balByCat.map((c,ci)=>{
-    if(c.budget<=0){
-      // No budget to show progress against (e.g. Prestamos) — show the net directly
-      const netTxt=Math.abs(c.net)<1000?'Parejos':c.net>0?`Santi debe a Nata ${fmt(c.net)}`:`Nata debe a Santi ${fmt(Math.abs(c.net))}`;
-      return`<div style="margin-bottom:10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:12px" onclick="openCatBalModal(${ci})">
-        <span>${c.name}</span>
-        <span style="color:var(--t3);font-family:'DM Mono',monospace">${netTxt}</span>
-      </div>`;
-    }
-    const sPct=Math.min(100,Math.round(c.sanPaid/c.budget*100));
-    const nPct=Math.min(100-sPct,Math.round(c.natPaid/c.budget*100));
+    const denom=c.budget>0?c.budget:(c.natPaid+c.sanPaid);
+    const sPct=denom>0?Math.min(100,Math.round(c.sanPaid/denom*100)):0;
+    const nPct=denom>0?Math.min(100-sPct,Math.round(c.natPaid/denom*100)):0;
+    const rightLabel=c.budget>0?fmt(c.budget):fmt(c.natPaid+c.sanPaid);
     return`<div style="margin-bottom:10px;cursor:pointer" onclick="openCatBalModal(${ci})">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
         <span>${c.name}</span>
-        <span style="color:var(--t3);font-family:'DM Mono',monospace">${fmt(c.budget)}</span>
+        <span style="color:var(--t3);font-family:'DM Mono',monospace">${rightLabel}</span>
       </div>
       <div class="bar" style="height:6px;position:relative">
         <div style="position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--santi);width:${sPct}%"></div>
@@ -1307,12 +1482,12 @@ function renderReporte(){
 
   document.getElementById('rep-balance-hero').innerHTML=`
     <div class="bal-hero">
-      <div class="bal-ttl">balance de aportes · ${MONTHS[localRepMonth]}</div>
-      <div class="bal-main ${heroCls}" style="white-space:pre-line;cursor:pointer" onclick="toggleBalDetail()">${heroMsg}
-        <div style="font-size:11px;font-weight:400;margin-top:8px;opacity:.75"><span id="bal-detail-arrow" style="display:inline-block;transition:transform .2s">▶</span> ver desglose por categoría</div>
+      <div class="bal-ttl" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleBalDetail()">
+        <span>balance de aportes · ${MONTHS[localRepMonth]}</span>
+        <span id="bal-detail-arrow" style="font-size:11px;display:inline-block;transition:transform .2s">▶</span>
       </div>
-      ${showSaldar?`<div style="display:flex;gap:8px;margin-bottom:12px"><button class="btn btn-full" onclick="marcarSaldado()">✓ Marcar como saldado</button><button class="btn btn-full" onclick="pasarAPrestamos()">→ Pasar a préstamos</button></div>`:saldado?`<button class="btn btn-full" style="margin-bottom:12px;color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
-      <div id="bal-detail-body" style="display:none">
+      <div class="bal-main ${heroCls}" style="white-space:pre-line">${heroMsg}</div>
+      <div id="bal-detail-body" style="display:none;margin-bottom:12px">
         <div class="bal-col">
           <div class="bal-col-name">Nata pagó</div>
           <div class="bal-paid" style="color:var(--nata)">${fmt(bal.natPaid)}</div>
@@ -1328,6 +1503,7 @@ function renderReporte(){
         <div class="bal-col-name" style="margin-top:4px">por categoría</div>
         ${catBalHtml||'<div style="font-size:12px;color:var(--t3)">Sin datos este mes.</div>'}
       </div>
+      ${showSaldar?`<div style="display:flex;gap:8px"><button class="btn btn-full" onclick="marcarSaldado()">✓ Marcar como saldado</button><button class="btn btn-full" onclick="pasarAPrestamos()">→ Pasar a préstamos</button></div>`:saldado?`<button class="btn btn-full" style="color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
     </div>`;
 }
 
@@ -1406,10 +1582,6 @@ window.saveQexp=function(){
   rep.items[k].entries.push({monto,quien,nota,photoUrl,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})});
   const item=allItems().find(i=>i.id===itemId);
   if(item&&item.name==='Deuda a Santiago'&&quien==='Nata'){S.deuNataPagado=(S.deuNataPagado||0)+monto;}
-  if(item&&item.bolsillo&&!BOLSILLO_MAP[item.name]){
-    const bol=S.bolsillos.find(b=>b.name===item.bolsillo);
-    if(bol){if(!bol.log)bol.log=[];bol.acumulado=(bol.acumulado||0)+monto;bol.log.push({desc:`${item.name} · ${MONTHS[localRepMonth]}`,obs:nota,monto,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'abono'});}
-  }
   logActivity(`agregó pago de ${item?.name||'ítem'}: ${fmt(monto)}`);
   closeQexpModal();
   syncR();
@@ -1428,134 +1600,141 @@ window.removeEntry=function(itemId,ei){
   }
 };
 
-window.closeMonth=function(){
-  if(!confirm(`¿Cerrar ${MONTHS[localRepMonth]}? Solo los excedentes comunes se moverán al bolsillo.`))return;
-  // Solo excedentes comunes — los demás bolsillos ya se llenaron directo
-  let excTotal=0;const excLog=[];
-  (S.cats||[]).forEach(cat=>{
-    if(cat.id==='nata-personal'||cat.id==='santi-personal')return;
-    if(cat.id==='hogar')return;
-    (cat.items||[]).forEach(item=>{
-      if(BOLSILLO_MAP[item.name])return; // ya se llenó directo
-      const paid=getItemPaid(item.id);
-      if(paid.entries.length>0){const exc=item.budget-paid.total;if(exc>0){excTotal+=exc;excLog.push({desc:`Excedente ${item.name}`,monto:exc,fecha:`${MONTHS[localRepMonth]} ${localRepYear}`,tipo:'excedente'});}}
-    });
-  });
-  const exBol=S.bolsillos.find(b=>b.isExcedente);
-  if(exBol&&excTotal>0){exBol.acumulado=(exBol.acumulado||0)+excTotal;if(!exBol.log)exBol.log=[];exBol.log.push(...excLog);}
-  getRep().closed=true;syncR();
+// BOLSILLOS
+let openBolCards=new Set();
+window.toggleBolCard=function(bolId){
+  if(openBolCards.has(bolId))openBolCards.delete(bolId);else openBolCards.add(bolId);
+  document.getElementById(`bolcard-${bolId}`)?.classList.toggle('open');
 };
 
-// BOLSILLOS
 function renderBolsillos(){
-  document.getElementById('bol-list').innerHTML=(S.bolsillos||[]).map((b,i)=>{
-    const isAuto=!b.manual;
-    const isDirect=Object.values(BOLSILLO_MAP).includes(b.name);
+  document.getElementById('bol-list').innerHTML=(S.bolsillos||[]).map((b)=>{
     const barCls=b.color==='teal'?'btl':b.color==='blue'?'bbl':b.color==='amber'?'bamb':'ba';
+    const displayAcum=b.acumulado||0;
+    const hasMeta=b.metaMensual>0;
+    const isOpen=openBolCards.has(b.id);
+    const p=hasMeta?pct(displayAcum,b.metaMensual):0;
 
-    // For direct bolsillos: compute from reportes + add manual retiros
-    let displayAcum=b.acumulado||0;
-    let allLogItems=[];
-    if(isDirect){
-      const computed=computeBolsilloAcumulado(b.name);
-      if(computed){
-        // Manual retiros stored in log (tipo=retiro, not fromReporte)
-        const manualRetiros=(b.log||[]).filter(e=>e.tipo==='retiro'&&!e.fromReporte);
-        const retiroTotal=manualRetiros.reduce((s,e)=>s+e.monto,0); // negative values
-        displayAcum=computed.computed+retiroTotal;
-        // Combine: reporte entries (no ×) + manual retiros (with ×)
-        allLogItems=[
-          ...computed.reporteLog.map(e=>({...e,fromReporte:true})),
-          ...manualRetiros.map((e,mi)=>({...e,manualIdx:(b.log||[]).indexOf(e)}))
-        ].sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||'')).slice(0,8);
-      }
-    }else{
-      allLogItems=(b.log||[]).slice(-8).reverse().map((e,li)=>({...e,actualIdx:(b.log||[]).length-1-li}));
+    let balanceHtml='';
+    if(hasMeta){
+      const bal=computeBolBalance(b);
+      const mkkey=`${b.id}-${bal.y}-${bal.m}`;
+      const saldado=S.bolSaldos&&S.bolSaldos[mkkey];
+      const anyAporte=bal.natAporte>0||bal.sanAporte>0;
+      let heroMsg='',heroCls='bal-none';
+      if(saldado){heroMsg=`${saldado.prestamo?'Pasado a préstamos el':'Saldado el'} ${saldado.fecha||saldado} ✓${saldado.nota?'\n'+saldado.nota:''}`;heroCls='bal-even';}
+      else if(!anyAporte){heroMsg='Sin aportes este mes aún.';heroCls='bal-none';}
+      else if(Math.abs(bal.net)<1000){heroMsg='Están parejos ✓';heroCls='bal-even';}
+      else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
+      else{heroMsg=`Nata le debe a Santiago\n${fmt(Math.abs(bal.net))}`;heroCls='bal-owe';}
+      const showSaldar=!saldado&&anyAporte&&Math.abs(bal.net)>=1000;
+      balanceHtml=`
+        <div class="bal-hero" style="padding:12px;margin-bottom:12px">
+          <div class="bal-ttl">aporte de ${MONTHS[bal.m]}</div>
+          <div class="bal-main ${heroCls}" style="white-space:pre-line;font-size:14px;padding:10px 12px">${heroMsg}</div>
+          ${showSaldar?`<div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-full" onclick="marcarBolSaldado(${b.id})">✓ Marcar saldado</button><button class="btn btn-full" onclick="pasarBolAPrestamos(${b.id})">→ Pasar a préstamos</button></div>`:saldado?`<button class="btn btn-full" style="margin-top:10px;color:var(--t3)" onclick="desmarcarBolSaldado(${b.id})">↩ Desmarcar saldado</button>`:''}
+        </div>`;
     }
 
-    const p=b.metaMensual>0?pct(displayAcum,b.metaMensual):0;
+    const allLogItems=(b.log||[]).slice(-8).reverse().map((e,li)=>({...e,actualIdx:(b.log||[]).length-1-li}));
 
-    return`<div class="bol-card ${isAuto||isDirect?'auto':''}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-        <div>
-          <div style="font-size:15px;font-weight:600;margin-bottom:2px">${b.name}${(isAuto||isDirect)?` <span class="bdg bgrn" style="font-size:9px;vertical-align:middle">${isDirect?'directo':'auto'}</span>`:''}</div>
-          <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${b.metaMensual>0?`meta · ${fmt(b.metaMensual)}/mes`:isDirect?'desde reporte mensual':isAuto?'se acumula automáticamente':''}</div>
+    return`<div class="disc-cat${isOpen?' open':''}" id="bolcard-${b.id}">
+      <div class="disc-cat-hdr" onclick="toggleBolCard(${b.id})">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.icon||'💰'} ${b.name}</div>
+          <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${hasMeta?`meta ${fmt(b.metaMensual)}/mes`:'sin meta mensual'}</div>
         </div>
-        <div style="font-size:26px;font-weight:600;letter-spacing:-.03em;color:${displayAcum<0?'var(--red)':'var(--t1)'}">${fmtM(displayAcum)}</div>
+        <div style="text-align:right;margin-right:8px;flex-shrink:0;font-size:15px;font-weight:600;color:${displayAcum<0?'var(--red)':'var(--t1)'}">${fmtM(displayAcum)}</div>
+        <button class="btn btn-xs" onclick="event.stopPropagation();openBolAporte(${b.id})" style="border-color:var(--accent);color:var(--accent);font-weight:600">+</button>
+        <span class="disc-arrow" style="margin-left:8px">▶</span>
       </div>
-      <div class="bar" style="height:6px;margin-bottom:14px"><div class="bar-f ${barCls}" style="width:${p}%"></div></div>
-      <div style="margin-bottom:12px">
-        ${allLogItems.length>0?allLogItems.map((e)=>{
-          const isNeg=(e.monto||0)<0||e.tipo==='retiro';
-          const canDelete=!e.fromReporte&&e.actualIdx!==undefined;
-          return`<div class="bol-log-item">
-            <div><div style="font-size:13px">${e.desc||'—'}</div><div style="font-size:11px;color:var(--t3)">${e.obs||''} ${e.fecha||''}</div></div>
-            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-              <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:${isNeg?'var(--red)':'var(--accent)'}">${isNeg?'−':'+'}${fmt(Math.abs(e.monto||0))}</span>
-              ${canDelete?`<button class="btn-danger" onclick="removeLogEntry(${i},${e.actualIdx})">×</button>`:`<span style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace">reporte</span>`}
-            </div>
-          </div>`;
-        }).join(''):`<div style="color:var(--t3);font-size:12px;padding:8px 0">Sin movimientos aún</div>`}
+      <div class="disc-cat-body">
+        <div style="padding:14px">
+          ${hasMeta?`<div class="bar" style="height:6px;margin-bottom:14px"><div class="bar-f ${barCls}" style="width:${p}%"></div></div>`:''}
+          ${balanceHtml}
+          <div style="margin-bottom:12px">
+            ${allLogItems.length>0?allLogItems.map((e)=>{
+              const isNeg=(e.monto||0)<0||e.tipo==='retiro';
+              return`<div class="bol-log-item">
+                <div><div style="font-size:13px">${e.desc||'—'}${e.quien?` <span class="bdg ${e.quien==='Nata'?'bn':'bs'}" style="font-size:9px">${e.quien}</span>`:''}</div><div style="font-size:11px;color:var(--t3)">${e.obs||''} ${e.fecha||''}</div></div>
+                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                  <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:${isNeg?'var(--red)':'var(--accent)'}">${isNeg?'−':'+'}${fmt(Math.abs(e.monto||0))}</span>
+                  <button class="btn-danger" onclick="removeLogEntry(${b.id},${e.actualIdx})">×</button>
+                </div>
+              </div>`;
+            }).join(''):`<div style="color:var(--t3);font-size:12px;padding:8px 0">Sin movimientos aún</div>`}
+          </div>
+          ${b.manual?`<button class="btn btn-ghost btn-full" style="color:var(--red);font-size:12px" onclick="delBol(${b.id})">Eliminar bolsillo</button>`:''}
+        </div>
       </div>
-      ${(b.manual||isDirect)?`
-        <div class="frow frow2" style="margin-bottom:10px">
-          <div class="fg"><div class="fl">retirar monto</div><input type="number" id="ba-${i}" placeholder="0"></div>
-          <div class="fg"><div class="fl">motivo</div><input type="text" id="bo-${i}" placeholder="motivo..."></div>
-        </div>
-        ${b.manual&&!isDirect?`
-        <div class="frow frow2" style="margin-bottom:10px">
-          <div class="fg"><div class="fl">tipo</div><select id="bt-${i}"><option value="abono">Abonar</option><option value="retiro">Retirar</option></select></div>
-          <div class="fg"><div class="fl">observación</div><input type="text" id="boo-${i}" placeholder="nota..."></div>
-        </div>
-        <button class="btn btn-a btn-full" onclick="movBol(${i})">Registrar movimiento</button>
-        `:`<button class="btn btn-full" style="color:var(--red);border-color:var(--rdim);background:transparent" onclick="retirarBol(${i})">− Retirar del bolsillo</button>`}
-      `:`
-        <div class="frow frow2" style="margin-bottom:10px">
-          <div class="fg"><div class="fl">retirar monto</div><input type="number" id="ba-${i}" placeholder="0"></div>
-          <div class="fg"><div class="fl">motivo</div><input type="text" id="bo-${i}" placeholder="motivo..."></div>
-        </div>
-        <button class="btn btn-full" style="color:var(--red);border-color:var(--rdim);background:transparent" onclick="retirarBol(${i})">− Retirar</button>
-      `}
     </div>`;
   }).join('')||'<div class="empty">Sin bolsillos</div>';
 }
 
-window.removeLogEntry=function(bi,li){
-  const b=S.bolsillos[bi];
+window.removeLogEntry=function(bolId,li){
+  const b=S.bolsillos.find(x=>x.id===bolId);
   if(!b||!b.log||b.log[li]===undefined)return;
   const e=b.log[li];
   b.acumulado=(b.acumulado||0)-e.monto;
   b.log.splice(li,1);syncR();
 };
-window.movBol=function(i){
-  const v=parseFloat(document.getElementById(`ba-${i}`)?.value)||0;
-  const tipo=document.getElementById(`bt-${i}`)?.value||'abono';
-  const obs=document.getElementById(`boo-${i}`)?.value||'';
-  if(!v)return;
-  if(!S.bolsillos[i].log)S.bolsillos[i].log=[];
-  const delta=tipo==='abono'?v:-v;
-  S.bolsillos[i].acumulado=(S.bolsillos[i].acumulado||0)+delta;
-  S.bolsillos[i].log.push({desc:tipo==='abono'?'Abono':'Retiro',obs,monto:delta,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo});
-  syncR();
+window.openAddBolModal=function(){
+  document.getElementById('nb-n').value='';
+  document.getElementById('nb-m').value='';
+  document.getElementById('addbol-modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('nb-n').focus(),100);
 };
-// Unified retiro for all bolsillos (stores in log as manual retiro, not fromReporte)
-window.retirarBol=function(i){
-  const v=parseFloat(document.getElementById(`ba-${i}`)?.value)||0;
-  const obs=document.getElementById(`bo-${i}`)?.value||'';
-  if(!v)return;
-  if(!S.bolsillos[i].log)S.bolsillos[i].log=[];
-  // For direct bolsillos: retiro is stored in log (not acumulado, which is computed)
-  // For others: also update acumulado
-  const isDirect=Object.values(BOLSILLO_MAP).includes(S.bolsillos[i].name);
-  if(!isDirect)S.bolsillos[i].acumulado=(S.bolsillos[i].acumulado||0)-v;
-  S.bolsillos[i].log.push({desc:'Retiro',obs,monto:-v,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'retiro'});
-  syncR();
-};
+window.closeAddBolModal=function(){document.getElementById('addbol-modal-bg')?.classList.remove('open');};
 window.addBol=function(){
   const n=document.getElementById('nb-n')?.value.trim(),m=parseFloat(document.getElementById('nb-m')?.value)||0;
   if(!n)return;
-  S.bolsillos.push({id:S.nextId++,name:n,metaMensual:m,acumulado:0,color:'accent',log:[],manual:true});
+  S.bolsillos.push({id:S.nextId++,name:n,icon:'💰',metaMensual:m,acumulado:0,color:'accent',log:[],split:'50-50',manual:true});
   document.getElementById('nb-n').value='';document.getElementById('nb-m').value='';syncR();
+  closeAddBolModal();
+};
+
+let bolApId=null;
+window.updateBolApFields=function(){
+  const tipo=document.getElementById('bolap-tipo')?.value||'aporte';
+  const wrap=document.getElementById('bolap-quien-wrap');
+  const nlabel=document.getElementById('bolap-n-label');
+  if(wrap)wrap.style.display=tipo==='aporte'?'flex':'none';
+  if(nlabel)nlabel.textContent=tipo==='retiro'?'motivo':'nota';
+};
+window.openBolAporte=function(bolId){
+  bolApId=bolId;
+  const b=S.bolsillos.find(x=>x.id===bolId);if(!b)return;
+  document.getElementById('bolap-modal-ttl').textContent=`Movimiento · ${b.name}`;
+  document.getElementById('bolap-tipo').value='aporte';
+  document.getElementById('bolap-m').value='';
+  document.getElementById('bolap-q').value='';
+  document.getElementById('bolap-n').value='';
+  updateBolApFields();
+  document.getElementById('bolap-modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('bolap-m').focus(),100);
+};
+window.closeBolApModal=function(){document.getElementById('bolap-modal-bg')?.classList.remove('open');};
+window.saveBolAporte=function(){
+  const b=S.bolsillos.find(x=>x.id===bolApId);if(!b)return;
+  const tipo=document.getElementById('bolap-tipo')?.value||'aporte';
+  const monto=parseFloat(document.getElementById('bolap-m')?.value)||0;
+  const nota=document.getElementById('bolap-n')?.value||'';
+  if(!monto){alert('Completa el monto.');return;}
+  if(!b.log)b.log=[];
+  if(tipo==='aporte'){
+    const quien=document.getElementById('bolap-q')?.value||'';
+    if(!quien){alert('Completa quién aporta.');return;}
+    const now=new Date();
+    b.acumulado=(b.acumulado||0)+monto;
+    b.log.push({desc:'Aporte',obs:nota,monto,quien,fecha:now.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'abono',year:now.getFullYear(),month:now.getMonth()});
+    logActivity(`aportó ${fmt(monto)} a ${b.name}`);
+  }else{
+    b.acumulado=(b.acumulado||0)-monto;
+    b.log.push({desc:'Retiro',obs:nota,monto:-monto,fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),tipo:'retiro'});
+    logActivity(`retiró ${fmt(monto)} de ${b.name}`);
+  }
+  closeBolApModal();
+  syncR();
 };
 
 // CASA 51
@@ -1596,10 +1775,11 @@ function renderConfig(){
   let html='';
   (S.cats||[]).forEach((cat)=>{
     if(cat.id==='prestamos'||cat.isPrestamos)return;
+    if(cat.id==='nata-personal'&&getCurrentUser()==='Santiago')return;
     const ci=S.cats.indexOf(cat); // real index in S.cats
     html+=`<div class="card">
       <div class="card-hdr">
-        <span class="card-ttl">${cat.name}</span>
+        <span class="card-ttl">${cat.icon||'📁'} ${cat.name}</span>
         <div style="display:flex;gap:6px">
           <button class="btn btn-sm btn-ghost" data-catid="${cat.id}" onclick="renamecat(this.dataset.catid)" style="font-size:11px;padding:6px 10px">✏️</button>
           <button class="btn btn-sm" data-catid="${cat.id}" onclick="openModal(this.dataset.catid)">+ agregar</button>
@@ -1609,7 +1789,6 @@ function renderConfig(){
       const splitLabel={'50-50':'50/50','70-30':'70% Santi','nata100':'Nata 100%','santi100':'Santi 100%','nata':'Solo Nata','santi':'Solo Santi'}[item.split]||item.split;
       const tags=[];
       if(item.anual)tags.push('<span class="bdg byel" style="font-size:9px">anual</span>');
-      if(item.bolsillo)tags.push(`<span class="bdg bgrn" style="font-size:9px">→ ${item.bolsillo}</span>`);
       return`<div class="cfg-item">
         <div class="cfg-item-row">
           <div style="flex:1;min-width:0">
@@ -1629,34 +1808,16 @@ function renderConfig(){
     html+=`<button class="btn btn-ghost btn-full" data-catid="${cat.id}" style="margin-top:8px;color:var(--red);font-size:12px" onclick="delCat(this.dataset.catid)">Eliminar categoría</button>`;
     html+='</div>';
   });
-  // Nueva categoría
-  html+=`<div class="card" style="border-style:dashed">
-    <div class="card-ttl" style="margin-bottom:14px">nueva categoría</div>
-    <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nc-n" placeholder="ej: Vehículo"></div>
-    <div class="fg" style="margin-bottom:14px"><div class="fl">tipo de gasto</div>
-      <select id="nc-s">
-        <option value="50-50">Común 50/50</option>
-        <option value="70-30">Homeschool 70% Santi / 30% Nata</option>
-        <option value="nata">Solo Nata</option>
-        <option value="santi">Solo Santi</option>
-      </select>
-    </div>
-    <button class="btn btn-a btn-full" onclick="addCat()">+ Crear categoría</button>
-  </div>
-  <div style="height:40px"></div>`;
+  html+=`<div style="height:40px"></div>`;
   document.getElementById('cfg-cats').innerHTML=html;
 }
 
-window.toggleBolsillo=function(ci,ii,on){
-  if(on){
-    const nombre=S.cats[ci].items[ii].name;
-    const match=(S.bolsillos||[]).find(b=>b.name.toLowerCase().includes(nombre.toLowerCase()));
-    S.cats[ci].items[ii].bolsillo=match?match.name:(S.bolsillos[0]?.name||'');
-  }else{
-    delete S.cats[ci].items[ii].bolsillo;
-  }
-  syncR();
+window.openAddCatModal=function(){
+  document.getElementById('nc-n').value='';
+  document.getElementById('addcat-modal-bg').classList.add('open');
+  setTimeout(()=>document.getElementById('nc-n').focus(),100);
 };
+window.closeAddCatModal=function(){document.getElementById('addcat-modal-bg')?.classList.remove('open');};
 window.addCat=function(){
   const inp=document.getElementById('nc-n');
   const sel=document.getElementById('nc-s');
@@ -1665,12 +1826,13 @@ window.addCat=function(){
   const s=sel?sel.value:'50-50';
   if(!n){alert('Escribe un nombre para la categoría');return;}
   const id='cat-'+Date.now();
-  const newCat={id,name:n,items:[],defaultSplit:s,custom:true};
+  const newCat={id,name:n,icon:'📁',items:[],defaultSplit:s,custom:true};
   const natIdx=S.cats.findIndex(c=>c.id==='nata-personal');
   if(natIdx>=0)S.cats.splice(natIdx,0,newCat);
   else S.cats.push(newCat);
   inp.value='';
   logActivity(`creó la categoría "${n}"`);
+  closeAddCatModal();
   syncR();
 };
 window.renamecat=function(catRef){
@@ -1714,7 +1876,8 @@ window.delItem=function(catRef,itemRef){
   }
 };
 
-window.delBol=function(i){
+window.delBol=function(bolId){
+  const i=S.bolsillos.findIndex(b=>b.id===bolId);
   const bol=S.bolsillos[i];
   if(!bol)return;
   if(!bol.manual){alert('Este bolsillo es parte del sistema y no se puede eliminar.');return;}
@@ -1749,11 +1912,6 @@ window.toggleModal=function(id){
   const isOn=input.value==='1';
   input.value=isOn?'0':'1';
   wrap.classList.toggle('on',!isOn);
-  // Show/hide bolsillo selector
-  if(id==='m-ahorro'){
-    const bolWrap=document.getElementById('m-bolsillo-wrap');
-    if(bolWrap)bolWrap.style.display=isOn?'none':'block';
-  }
 };
 
 window.openModal=function(catRef,itemRef){
@@ -1794,17 +1952,8 @@ window.openModal=function(catRef,itemRef){
 
   // Toggles
   const anualOn=item?.anual||false;
-  const ahorroOn=!!(item?.bolsillo);
   document.getElementById('m-anual').value=anualOn?'1':'0';
   document.getElementById('m-anual-toggle').parentElement.classList.toggle('on',anualOn);
-  document.getElementById('m-ahorro').value=ahorroOn?'1':'0';
-  document.getElementById('m-ahorro-toggle').parentElement.classList.toggle('on',ahorroOn);
-
-  // Bolsillo selector
-  const bolWrap=document.getElementById('m-bolsillo-wrap');
-  bolWrap.style.display=ahorroOn?'block':'none';
-  const bolSel=document.getElementById('m-bolsillo');
-  bolSel.innerHTML=(S.bolsillos||[]).map(b=>`<option value="${b.name}" ${item?.bolsillo===b.name?'selected':''}>${b.name}</option>`).join('');
 
   updateModalHints();
   document.getElementById('modal-bg').classList.add('open');
@@ -1818,19 +1967,16 @@ window.saveModal=function(){
   const m=parseFloat(document.getElementById('m-m').value)||0;
   const split=document.getElementById('m-split').value;
   const anual=document.getElementById('m-anual').value==='1';
-  const ahorro=document.getElementById('m-ahorro').value==='1';
-  const bolsillo=ahorro?document.getElementById('m-bolsillo').value:'';
   if(!n)return;
 
   if(modalItemIdx>=0){
     // Editing existing
     const item=S.cats[modalCatIdx].items[modalItemIdx];
     item.name=n;item.budget=m;item.split=split;item.anual=anual;
-    if(bolsillo)item.bolsillo=bolsillo;else delete item.bolsillo;
     logActivity(`editó el ítem "${n}"`);
   }else{
     // New item — always custom (can be deleted)
-    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,bolsillo:bolsillo||undefined,custom:true});
+    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,custom:true});
     logActivity(`agregó el ítem "${n}" en ${S.cats[modalCatIdx].name}`);
   }
   closeModal();syncR();
@@ -1838,7 +1984,11 @@ window.saveModal=function(){
 document.getElementById('modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-bg'))closeModal();});
 document.getElementById('catbal-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('catbal-modal-bg'))closeCatBalModal();});
 document.getElementById('qexp-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('qexp-modal-bg'))closeQexpModal();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeCatBalModal();closeQexpModal();}});
+document.getElementById('bolap-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('bolap-modal-bg'))closeBolApModal();});
+document.getElementById('addbol-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('addbol-modal-bg'))closeAddBolModal();});
+document.getElementById('addcat-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('addcat-modal-bg'))closeAddCatModal();});
+document.getElementById('saldar-modal-bg').addEventListener('click',e=>{if(e.target===document.getElementById('saldar-modal-bg'))closeSaldarModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeCatBalModal();closeQexpModal();closeBolApModal();closeAddBolModal();closeSaldarModal();closeAddCatModal();}});
 </script>
 </body>
 </html>
