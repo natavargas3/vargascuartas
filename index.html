@@ -1563,21 +1563,21 @@ function renderQexpItems(){
   const cat=S.cats.find(c=>c.id===qexpCatId);
   document.getElementById('qexp-modal-ttl').textContent=cat?`Agregar gasto · ${cat.name}`:'Agregar gasto';
   const sel=document.getElementById('qexp-item');
-  sel.innerHTML=`<option value="">— seleccionar —</option>`+(cat?.items||[]).map(it=>`<option value="${it.id}">${it.name}</option>`).join('');
+  sel.innerHTML=cat?`<option value="">— seleccionar —</option>`+(cat.items||[]).map(it=>`<option value="${it.id}">${it.name}</option>`).join(''):`<option value="">— primero elige categoría —</option>`;
   updateQexpQuien();
 }
 window.updateQexpItems=function(){
-  qexpCatId=document.getElementById('qexp-cat')?.value||qexpCatId;
+  qexpCatId=document.getElementById('qexp-cat')?.value||null;
   renderQexpItems();
 };
 window.openQuickExp=function(catId,photoUrl){
   const cats=qexpVisibleCats();
   const fixed=!!catId;
-  qexpCatId=fixed?catId:(cats[0]?.id||null);
+  qexpCatId=fixed?catId:(cats.find(c=>c.id==='viajes')?.id||cats[0]?.id||null);
   const catWrap=document.getElementById('qexp-cat-wrap');
   catWrap.style.display=fixed?'none':'block';
   if(!fixed){
-    document.getElementById('qexp-cat').innerHTML=cats.map(c=>`<option value="${c.id}">${c.icon||'📁'} ${c.name}</option>`).join('');
+    document.getElementById('qexp-cat').innerHTML=`<option value="">— elegir categoría —</option>`+cats.map(c=>`<option value="${c.id}">${c.icon||'📁'} ${c.name}</option>`).join('');
     document.getElementById('qexp-cat').value=qexpCatId||'';
   }
   document.getElementById('qexp-m').value='';
