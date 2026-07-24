@@ -27,22 +27,6 @@ html,body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;
 .page.active{display:block}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* LOCK */
-.lock{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;touch-action:manipulation}
-.lock.hidden{display:none}
-.lock-logo{font-size:22px;font-weight:600;letter-spacing:-.03em;margin-bottom:6px}
-.lock-sub{font-size:13px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:48px}
-.lock-dots{display:flex;gap:16px;margin-bottom:40px}
-.lock-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--b3);background:transparent;transition:all .15s}
-.lock-dot.on{background:var(--accent);border-color:var(--accent)}
-.lock-dot.err{background:var(--red);border-color:var(--red)}
-.lock-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:280px}
-.lock-key{background:var(--s2);border:1px solid var(--b1);border-radius:var(--r);padding:18px;font-size:24px;font-weight:500;cursor:pointer;transition:background .15s;text-align:center;-webkit-tap-highlight-color:rgba(200,249,125,0.3);touch-action:manipulation;user-select:none}
-.lock-key:active{background:var(--accent);color:var(--atext)}
-.lock-key.del{font-size:18px;color:var(--t2)}
-.lock-key.empty{background:transparent;border-color:transparent;pointer-events:none}
-.lock-err{font-size:13px;color:var(--red);margin-top:16px;min-height:20px;text-align:center}
-
 /* NAV */
 .bot-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav);background:var(--s1);border-top:1px solid var(--b1);display:flex;align-items:stretch;z-index:50;padding-bottom:env(safe-area-inset-bottom)}
 .bot-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;border:none;background:none;color:var(--t3);transition:color .15s;padding:8px 4px}
@@ -367,8 +351,8 @@ a{color:var(--accent);text-decoration:none}
   </div>
   <div class="card">
     <div class="card-ttl" style="margin-bottom:16px">cambiar PIN</div>
-    <div class="fg" style="margin-bottom:10px"><div class="fl">PIN actual</div><input type="password" id="pin-old" maxlength="4" placeholder="••••" inputmode="numeric" style="letter-spacing:6px;max-width:160px"></div>
-    <div class="fg" style="margin-bottom:14px"><div class="fl">PIN nuevo</div><input type="password" id="pin-new" maxlength="4" placeholder="••••" inputmode="numeric" style="letter-spacing:6px;max-width:160px"></div>
+    <div class="fg" style="margin-bottom:10px"><div class="fl">PIN actual</div><input type="password" id="pin-old" maxlength="2" placeholder="••" style="letter-spacing:6px;max-width:160px"></div>
+    <div class="fg" style="margin-bottom:14px"><div class="fl">PIN nuevo (2 letras, ej: Ab)</div><input type="password" id="pin-new" maxlength="2" placeholder="••" style="letter-spacing:6px;max-width:160px"></div>
     <button class="btn btn-sm" onclick="changePin()">Actualizar PIN</button>
     <div id="pin-msg" style="font-size:12px;margin-top:8px;min-height:18px"></div>
   </div>
@@ -599,13 +583,18 @@ a{color:var(--accent);text-decoration:none}
 
 <script>
 // PIN con prompt nativo — funciona en iOS sin problemas
-function getPin(){return localStorage.getItem('vc-pin')||'1234';}
+function normalizePin(s){
+  s=(s||'').replace(/[^a-zA-ZÁÉÍÓÚÑáéíóúñ]/g,'').slice(0,2);
+  return s.length===2?s[0].toUpperCase()+s[1].toLowerCase():s;
+}
+function getPin(){return localStorage.getItem('vc-pin')||'Ab';}
+function pinMatches(input){var p=getPin();return input===p||normalizePin(input)===p;}
 function checkPin(){
   var attempts=0;
   function ask(){
     var input=prompt('Vargas Cuartas\nIngresa tu PIN de acceso:');
     if(input===null){ask();return;}
-    if(input===getPin()){return;}
+    if(pinMatches(input)){return;}
     attempts++;
     alert('PIN incorrecto. Intento '+attempts+' de 3.');
     if(attempts<3){ask();}
@@ -615,60 +604,18 @@ function checkPin(){
 }
 window.changePin=function(){
   var o=document.getElementById('pin-old')?.value;
-  var n=document.getElementById('pin-new')?.value;
+  var n=normalizePin(document.getElementById('pin-new')?.value);
   var m=document.getElementById('pin-msg');
-  if(o!==getPin()){m.style.color='var(--red)';m.textContent='PIN actual incorrecto';return;}
-  if(!n||n.length!==4||!/^\d{4}$/.test(n)){m.style.color='var(--red)';m.textContent='El PIN nuevo debe ser 4 dígitos';return;}
+  if(!pinMatches(o)){m.style.color='var(--red)';m.textContent='PIN actual incorrecto';return;}
+  if(!/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]$/.test(n)){m.style.color='var(--red)';m.textContent='El PIN nuevo debe ser 2 letras';return;}
   localStorage.setItem('vc-pin',n);
   m.style.color='var(--accent)';m.textContent='PIN actualizado ✓';
   document.getElementById('pin-old').value='';
   document.getElementById('pin-new').value='';
   setTimeout(function(){if(m)m.textContent='';},2000);
 };
-checkPin();
-</script>
-</script>
-
-<script>
-// PIN LOCK — must be outside module for onclick to work on iOS
-var lockInput='';
-var lockAttempts=0;
-var DEFAULT_PIN_VAL='1234';
-function getPin(){return localStorage.getItem('vc-pin')||DEFAULT_PIN_VAL;}
-function updDots(){
-  for(var i=0;i<4;i++){
-    var e=document.getElementById('ld'+i);
-    if(e){e.classList.toggle('on',i<lockInput.length);e.classList.remove('err');}
-  }
-}
-function lk(d){
-  if(lockInput.length>=4)return;
-  lockInput+=d;updDots();
-  if(lockInput.length===4){
-    if(lockInput===getPin()){
-      document.getElementById('lock').classList.add('hidden');
-      lockInput='';lockAttempts=0;updDots();
-      var r=document.getElementById('lock-reset');if(r)r.style.display='none';
-    }else{
-      lockAttempts++;
-      document.querySelectorAll('.lock-dot').forEach(function(e){e.classList.add('err');});
-      document.getElementById('lerr').textContent='PIN incorrecto';
-      if(lockAttempts>=3){var r=document.getElementById('lock-reset');if(r)r.style.display='block';}
-      setTimeout(function(){
-        lockInput='';updDots();
-        document.querySelectorAll('.lock-dot').forEach(function(e){e.classList.remove('err');e.classList.remove('on');});
-        document.getElementById('lerr').textContent='';
-      },800);
-    }
-  }
-}
-function ld(){if(lockInput.length>0){lockInput=lockInput.slice(0,-1);updDots();}}
-function resetPin(){
-  localStorage.removeItem('vc-pin');
-  lockInput='';lockAttempts=0;updDots();
-  var r=document.getElementById('lock-reset');if(r)r.style.display='none';
-  document.getElementById('lerr').textContent='PIN reseteado. Usa 1234.';
-}
+// El flujo de comprobante compartido lo abren ustedes mismos desde el Atajo — no pide PIN ahí
+if(!new URLSearchParams(location.search).has('comprobante'))checkPin();
 </script>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
