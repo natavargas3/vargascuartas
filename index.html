@@ -413,6 +413,11 @@ a{color:var(--accent);text-decoration:none}
     <div class="modal-handle"></div>
     <div class="modal-ttl" id="qexp-modal-ttl">Agregar gasto</div>
 
+    <div class="fg" id="qexp-cat-wrap" style="margin-bottom:16px;display:none">
+      <div class="fl">categoría</div>
+      <select id="qexp-cat" onchange="updateQexpItems()"></select>
+    </div>
+
     <div class="fg" style="margin-bottom:16px">
       <div class="fl">subcategoría</div>
       <select id="qexp-item" onchange="updateQexpQuien()"></select>
@@ -840,8 +845,16 @@ onValue(dbRef,snap=>{
     (S.bolsillos||[]).forEach(b=>{if(b.name==='China ✈')b.name='Viaje internacional ✈';});
     currentFilter=S.dashFilter||'mes';
   }
+  const firstLoad=isFirst;
   if(isFirst){document.getElementById('loading').classList.add('hidden');isFirst=false;applyInputs();}
   syncSt('on');renderAll();
+  if(firstLoad){
+    const sharedPhoto=new URLSearchParams(location.search).get('comprobante');
+    if(sharedPhoto){
+      openQuickExp(null,sharedPhoto);
+      history.replaceState({},'',location.pathname);
+    }
+  }
 });
 
 window.syncR=function(){
@@ -1539,20 +1552,41 @@ function computeBolsilloAcumulado(bolName){
 }
 
 let qexpCatId=null;
-window.openQuickExp=function(catId){
-  qexpCatId=catId;
-  const cat=S.cats.find(c=>c.id===catId);
-  if(!cat)return;
-  document.getElementById('qexp-modal-ttl').textContent=`Agregar gasto · ${cat.name}`;
+function qexpVisibleCats(){
+  return (S.cats||[]).filter(c=>{
+    if(c.id==='santi-personal')return false;
+    if(c.id==='nata-personal'&&getCurrentUser()==='Santiago')return false;
+    return true;
+  });
+}
+function renderQexpItems(){
+  const cat=S.cats.find(c=>c.id===qexpCatId);
+  document.getElementById('qexp-modal-ttl').textContent=cat?`Agregar gasto · ${cat.name}`:'Agregar gasto';
   const sel=document.getElementById('qexp-item');
-  sel.innerHTML=`<option value="">— seleccionar —</option>`+(cat.items||[]).map(it=>`<option value="${it.id}">${it.name}</option>`).join('');
+  sel.innerHTML=`<option value="">— seleccionar —</option>`+(cat?.items||[]).map(it=>`<option value="${it.id}">${it.name}</option>`).join('');
+  updateQexpQuien();
+}
+window.updateQexpItems=function(){
+  qexpCatId=document.getElementById('qexp-cat')?.value||qexpCatId;
+  renderQexpItems();
+};
+window.openQuickExp=function(catId,photoUrl){
+  const cats=qexpVisibleCats();
+  const fixed=!!catId;
+  qexpCatId=fixed?catId:(cats[0]?.id||null);
+  const catWrap=document.getElementById('qexp-cat-wrap');
+  catWrap.style.display=fixed?'none':'block';
+  if(!fixed){
+    document.getElementById('qexp-cat').innerHTML=cats.map(c=>`<option value="${c.id}">${c.icon||'📁'} ${c.name}</option>`).join('');
+    document.getElementById('qexp-cat').value=qexpCatId||'';
+  }
   document.getElementById('qexp-m').value='';
   document.getElementById('qexp-n').value='';
-  document.getElementById('qexp-photo-url').value='';
-  document.getElementById('qexp-photo-label').textContent='Adjuntar foto';
-  updateQexpQuien();
+  document.getElementById('qexp-photo-url').value=photoUrl||'';
+  document.getElementById('qexp-photo-label').textContent=photoUrl?'✓ Foto adjuntada':'Adjuntar foto';
+  renderQexpItems();
   document.getElementById('qexp-modal-bg').classList.add('open');
-  setTimeout(()=>document.getElementById('qexp-item').focus(),100);
+  setTimeout(()=>document.getElementById(fixed?'qexp-item':'qexp-cat').focus(),100);
 };
 window.updateQexpQuien=function(){
   const cat=S.cats.find(c=>c.id===qexpCatId);
