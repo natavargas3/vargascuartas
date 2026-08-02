@@ -754,8 +754,14 @@ onValue(dbRef,snap=>{
       S.cats.splice(S.cats.findIndex(c=>c.id==='nata-personal'),0,p);
     }
     S.bolsillos=S.bolsillos.filter(b=>!b.isExcedente); // ya no existe (dependía del cierre de mes automático)
-    if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
-    if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
+    if(!S.bolsillos.find(b=>b.isImpuestos))S.bolsillos.push({id:S.nextId++,name:'Fondo Impuestos',icon:'🧾',metaMensual:0,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false});
+    if(!S.bolsillos.find(b=>b.isHogar))S.bolsillos.push({id:S.nextId++,name:'Fondo Hogar',icon:'🏠',metaMensual:0,acumulado:0,color:'teal',log:[],isHogar:true,manual:false});
+    // Fix: bolsillos creados antes de que existiera el campo icono no lo tienen — se lo asignamos por nombre
+    if(!S.bolsillosIconsFixed){
+      const BOL_ICONS={'Viaje internacional ✈':'🧳','Prima Norma':'🎁','Prima Profe':'🎁','Fondo Impuestos':'🧾','Fondo Hogar':'🏠'};
+      S.bolsillos.forEach(b=>{if(!b.icon&&BOL_ICONS[b.name])b.icon=BOL_ICONS[b.name];});
+      S.bolsillosIconsFixed=true;
+    }
     // Ahorros: los bolsillos ahora se manejan 100% manual (antes 'directos' se calculaban en vivo desde los reportes)
     S.bolsillos.forEach(b=>{if(!b.split)b.split='50-50';if(!b.log)b.log=[];});
     if(!S.bolsillosManualMigrated){
