@@ -494,7 +494,8 @@ a{color:var(--accent);text-decoration:none}
     <div class="modal-handle"></div>
     <div class="modal-ttl">Nuevo bolsillo</div>
     <div class="fg" style="margin-bottom:10px"><div class="fl">nombre</div><input type="text" id="nb-n" placeholder="ej: emergencias"></div>
-    <div class="fg" style="margin-bottom:16px"><div class="fl">meta mensual (COP)</div><input type="number" id="nb-m" placeholder="1000000"></div>
+    <div class="fg" style="margin-bottom:10px"><div class="fl">meta mensual (COP)</div><input type="number" id="nb-m" placeholder="1000000"></div>
+    <div class="fg" style="margin-bottom:16px"><div class="fl">dueño</div><select id="nb-owner"><option value="Nata">Nata</option><option value="Santiago">Santiago</option></select></div>
     <div class="modal-acts">
       <button class="btn btn-full" onclick="closeAddBolModal()">Cancelar</button>
       <button class="btn btn-a btn-full" onclick="addBol()">+ Crear bolsillo</button>
@@ -698,12 +699,12 @@ const DEFAULT={
     {id:'prestamos',name:'Préstamos entre nosotros',icon:'🔄',isPrestamos:true,items:[]},
   ],
   bolsillos:[
-    {id:1,name:'Viaje internacional ✈',icon:'🧳',metaMensual:300000,acumulado:0,color:'accent',log:[],manual:true},
-    {id:2,name:'Provisión empleada',icon:'🎁',metaMensual:200000,acumulado:0,color:'teal',log:[],manual:true},
-    {id:3,name:'Provisión profe',icon:'🎁',metaMensual:200000,acumulado:0,color:'teal',log:[],manual:true},
-    {id:5,name:'Provisión predial',icon:'🧾',metaMensual:300000,acumulado:0,color:'amber',log:[],isImpuestos:true,manual:false},
-    {id:6,name:'Fondo Hogar',icon:'🏠',metaMensual:200000,acumulado:0,color:'teal',log:[],isHogar:true,manual:false},
-    {id:7,name:'Provisión vehicular',icon:'🚙',metaMensual:200000,acumulado:0,color:'blue',log:[],manual:true},
+    {id:1,name:'Viaje internacional ✈',icon:'🧳',metaMensual:300000,acumulado:0,color:'accent',log:[],owner:'Nata',manual:true},
+    {id:2,name:'Provisión empleada',icon:'🎁',metaMensual:200000,acumulado:0,color:'teal',log:[],owner:'Nata',manual:true},
+    {id:3,name:'Provisión profe',icon:'🎁',metaMensual:200000,acumulado:0,color:'teal',log:[],owner:'Nata',manual:true},
+    {id:5,name:'Provisión predial',icon:'🧾',metaMensual:300000,acumulado:0,color:'amber',log:[],owner:'Santiago',isImpuestos:true,manual:false},
+    {id:6,name:'Fondo Hogar',icon:'🏠',metaMensual:200000,acumulado:0,color:'teal',log:[],owner:'Santiago',isHogar:true,manual:false},
+    {id:7,name:'Provisión vehicular',icon:'🚙',metaMensual:200000,acumulado:0,color:'blue',log:[],owner:'Santiago',manual:true},
   ],
   casaDeudas:[
     {id:1,name:'Administración',total:50000000},{id:2,name:'Hacienda',total:120000000},
@@ -797,8 +798,14 @@ onValue(dbRef,snap=>{
       }
       S.bolsillosProvisionMigrated=true;
     }
+    // Cada bolsillo ahora tiene un dueño único (ya no se reparte 50/50 entre los dos)
+    if(!S.bolsillosOwnerMigrated){
+      const OWNER_MAP={'Viaje internacional ✈':'Nata','Provisión empleada':'Nata','Provisión profe':'Nata','Provisión predial':'Santiago','Fondo Hogar':'Santiago','Provisión vehicular':'Santiago'};
+      S.bolsillos.forEach(b=>{if(!b.owner)b.owner=OWNER_MAP[b.name]||'Nata';});
+      S.bolsillosOwnerMigrated=true;
+    }
     // Ahorros: los bolsillos ahora se manejan 100% manual (antes 'directos' se calculaban en vivo desde los reportes)
-    S.bolsillos.forEach(b=>{if(!b.split)b.split='50-50';if(!b.log)b.log=[];});
+    S.bolsillos.forEach(b=>{if(!b.log)b.log=[];});
     if(!S.bolsillosManualMigrated){
       S.bolsillos.forEach(b=>{
         if(Object.values(BOLSILLO_MAP).includes(b.name)){
@@ -1281,38 +1288,35 @@ window.pasarAPrestamos=function(){
 };
 
 // AHORROS: balance de aporte mensual por bolsillo, independiente del balance general
-// Progreso individual de un bolsillo para un mes especifico: cada quien contra SU propia mitad (no entre ellos)
+// Progreso de un bolsillo para un mes especifico: el dueño único debe llenar el 100% de la meta
 function computeBolMonthProgress(b,year,month){
-  let ratioNata=0.5,ratioSanti=0.5;
-  if(b.split==='70-30'){ratioNata=0.3;ratioSanti=0.7;}
-  const natTarget=(b.metaMensual||0)*ratioNata,sanTarget=(b.metaMensual||0)*ratioSanti;
-  let natAporte=0,sanAporte=0;
+  const target=b.metaMensual||0;
+  let aporte=0;
   (b.log||[]).forEach(e=>{
     if(e.tipo!=='abono'||e.year!==year||e.month!==month)return;
-    if(e.quien==='Nata')natAporte+=e.monto;else if(e.quien==='Santiago')sanAporte+=e.monto;
+    aporte+=e.monto;
   });
-  return{natAporte,sanAporte,natTarget,sanTarget,year,month};
+  return{owner:b.owner,aporte,target,year,month};
 }
-// Atrasos historicos: meses pasados (desde el primer aporte registrado) donde a alguien le faltó plata por poner
+// Atrasos historicos: meses pasados (desde el primer aporte registrado) donde el dueño no completó su meta
 function computeBolArrears(b){
   const entries=(b.log||[]).filter(e=>e.tipo==='abono'&&e.year!==undefined&&e.month!==undefined);
-  if(!b.metaMensual||entries.length===0)return{natTotal:0,sanTotal:0,months:[]};
+  if(!b.metaMensual||entries.length===0)return{owner:b.owner,total:0,months:[]};
   const firstKey=Math.min(...entries.map(e=>e.year*12+e.month));
   const now=new Date();
   const lastKey=now.getFullYear()*12+now.getMonth()-1; // hasta el mes anterior (el actual sigue en curso)
   const months=[];
-  let natTotal=0,sanTotal=0;
+  let total=0;
   for(let k=firstKey;k<=lastKey;k++){
     const year=Math.floor(k/12),month=k%12;
     const prog=computeBolMonthProgress(b,year,month);
-    const natShort=Math.max(0,prog.natTarget-prog.natAporte);
-    const sanShort=Math.max(0,prog.sanTarget-prog.sanAporte);
-    if(natShort>=1000||sanShort>=1000){
-      months.push({year,month,natShort,sanShort});
-      natTotal+=natShort;sanTotal+=sanShort;
+    const short=Math.max(0,prog.target-prog.aporte);
+    if(short>=1000){
+      months.push({year,month,short});
+      total+=short;
     }
   }
-  return{natTotal,sanTotal,months};
+  return{owner:b.owner,total,months};
 }
 
 let saldarCtx=null;
@@ -1631,26 +1635,23 @@ function circProgress(pctVal,color,label,sub){
 
 function renderBolsillos(){
   document.getElementById('bolmlabel').textContent=`${MONTHS[localBolMonth]} ${localBolYear}`;
-  const bolsillosConMeta=(S.bolsillos||[]).filter(b=>b.metaMensual>0);
-  const totalConMeta=bolsillosConMeta.length;
-  let natDone=0,sanDone=0;
-  bolsillosConMeta.forEach(b=>{
-    const prog=computeBolMonthProgress(b,localBolYear,localBolMonth);
-    if(prog.natTarget>0&&prog.natAporte>=prog.natTarget)natDone++;
-    if(prog.sanTarget>0&&prog.sanAporte>=prog.sanTarget)sanDone++;
-  });
-  const natAllDone=totalConMeta>0&&natDone===totalConMeta;
-  const sanAllDone=totalConMeta>0&&sanDone===totalConMeta;
-  document.getElementById('bol-summary').innerHTML=totalConMeta===0?'':`
+  const natBols=(S.bolsillos||[]).filter(b=>b.metaMensual>0&&b.owner==='Nata');
+  const sanBols=(S.bolsillos||[]).filter(b=>b.metaMensual>0&&b.owner==='Santiago');
+  const totalNata=natBols.length,totalSanti=sanBols.length;
+  const natDone=natBols.filter(b=>{const prog=computeBolMonthProgress(b,localBolYear,localBolMonth);return prog.target>0&&prog.aporte>=prog.target;}).length;
+  const sanDone=sanBols.filter(b=>{const prog=computeBolMonthProgress(b,localBolYear,localBolMonth);return prog.target>0&&prog.aporte>=prog.target;}).length;
+  const natAllDone=totalNata>0&&natDone===totalNata;
+  const sanAllDone=totalSanti>0&&sanDone===totalSanti;
+  document.getElementById('bol-summary').innerHTML=(totalNata===0&&totalSanti===0)?'':`
     <div class="card" style="margin-bottom:12px">
       <div class="card-ttl" style="margin-bottom:14px">bolsillos completados · ${MONTHS[localBolMonth]}</div>
       <div style="display:flex;justify-content:space-around;align-items:flex-start;text-align:center">
         <div>
-          ${circProgress(totalConMeta>0?natDone/totalConMeta*100:0,'var(--nata)',`${natDone}/${totalConMeta}`,'Nata')}
+          ${circProgress(totalNata>0?natDone/totalNata*100:0,'var(--nata)',`${natDone}/${totalNata}`,'Nata')}
           ${natAllDone?'<div style="margin-top:6px;font-size:12px">🎉</div>':''}
         </div>
         <div>
-          ${circProgress(totalConMeta>0?sanDone/totalConMeta*100:0,'var(--santi)',`${sanDone}/${totalConMeta}`,'Santi')}
+          ${circProgress(totalSanti>0?sanDone/totalSanti*100:0,'var(--santi)',`${sanDone}/${totalSanti}`,'Santi')}
           ${sanAllDone?'<div style="margin-top:6px;font-size:12px">🎉</div>':''}
         </div>
       </div>
@@ -1661,33 +1662,25 @@ function renderBolsillos(){
     const hasMeta=b.metaMensual>0;
     const isOpen=openBolCards.has(b.id);
     const p=hasMeta?pct(displayAcum,b.metaMensual):0;
+    const ownerColor=b.owner==='Santiago'?'var(--santi)':'var(--nata)';
+    const ownerBarCls=b.owner==='Santiago'?'bst':'bnt';
 
     let progressHtml='',arrearsHtml='';
     if(hasMeta){
       const prog=computeBolMonthProgress(b,localBolYear,localBolMonth);
-      const natDoneItem=prog.natTarget>0&&prog.natAporte>=prog.natTarget;
-      const sanDoneItem=prog.sanTarget>0&&prog.sanAporte>=prog.sanTarget;
+      const doneItem=prog.target>0&&prog.aporte>=prog.target;
       progressHtml=`
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div class="bal-col">
-            <div class="bal-col-name" style="color:var(--nata)">Nata${natDoneItem?' 🎉':''}</div>
-            <div style="font-size:15px;font-weight:600;margin-bottom:6px">${fmt(prog.natAporte)} <span style="font-size:11px;color:var(--t3);font-weight:400">de ${fmt(prog.natTarget)}</span></div>
-            <div class="bar" style="height:5px">${bar(prog.natAporte,prog.natTarget,'bnt')}</div>
-          </div>
-          <div class="bal-col">
-            <div class="bal-col-name" style="color:var(--santi)">Santi${sanDoneItem?' 🎉':''}</div>
-            <div style="font-size:15px;font-weight:600;margin-bottom:6px">${fmt(prog.sanAporte)} <span style="font-size:11px;color:var(--t3);font-weight:400">de ${fmt(prog.sanTarget)}</span></div>
-            <div class="bar" style="height:5px">${bar(prog.sanAporte,prog.sanTarget,'bst')}</div>
-          </div>
+        <div class="bal-col" style="margin-bottom:12px">
+          <div class="bal-col-name" style="color:${ownerColor}">${b.owner}${doneItem?' 🎉':''}</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">${fmt(prog.aporte)} <span style="font-size:11px;color:var(--t3);font-weight:400">de ${fmt(prog.target)}</span></div>
+          <div class="bar" style="height:5px">${bar(prog.aporte,prog.target,ownerBarCls)}</div>
         </div>`;
 
       const arrears=computeBolArrears(b);
       if(arrears.months.length>0){
-        const natMsg=arrears.natTotal>=1000?`Nata atrasada: ${fmt(arrears.natTotal)}`:'';
-        const sanMsg=arrears.sanTotal>=1000?`Santi atrasado: ${fmt(arrears.sanTotal)}`:'';
         const isOpenArrears=openBolArrears.has(b.id);
         arrearsHtml=`
-          <div class="bal-main bal-owe" style="cursor:pointer;margin-bottom:12px;white-space:pre-line" onclick="toggleBolArrears(${b.id})">${[natMsg,sanMsg].filter(Boolean).join('\n')}
+          <div class="bal-main bal-owe" style="cursor:pointer;margin-bottom:12px;white-space:pre-line" onclick="toggleBolArrears(${b.id})">${b.owner} atrasad${b.owner==='Santiago'?'o':'a'}: ${fmt(arrears.total)}
             <div style="font-size:11px;font-weight:400;margin-top:8px;opacity:.75"><span id="bolarr-arrow-${b.id}" style="display:inline-block;transition:transform .2s;transform:rotate(${isOpenArrears?90:0}deg)">▶</span> ver meses atrasados</div>
           </div>
           <div id="bolarr-body-${b.id}" style="display:${isOpenArrears?'block':'none'};margin-bottom:12px">
@@ -1695,11 +1688,10 @@ function renderBolsillos(){
               <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--b1);gap:8px">
                 <div>
                   <div style="font-size:13px">${MONTHS[mo.month]} ${mo.year}</div>
-                  <div style="font-size:11px;color:var(--t3)">${mo.natShort>=1000?`Nata: ${fmt(mo.natShort)}`:''}${mo.natShort>=1000&&mo.sanShort>=1000?' · ':''}${mo.sanShort>=1000?`Santi: ${fmt(mo.sanShort)}`:''}</div>
+                  <div style="font-size:11px;color:var(--t3)">${fmt(mo.short)}</div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0">
-                  ${mo.natShort>=1000?`<button class="btn btn-xs" onclick="openBolAporte(${b.id},${mo.year},${mo.month},'Nata',true)">Saldar Nata</button>`:''}
-                  ${mo.sanShort>=1000?`<button class="btn btn-xs" onclick="openBolAporte(${b.id},${mo.year},${mo.month},'Santiago',true)">Saldar Santi</button>`:''}
+                  <button class="btn btn-xs" onclick="openBolAporte(${b.id},${mo.year},${mo.month},'${b.owner}',true)">Saldar</button>
                 </div>
               </div>`).join('')}
           </div>`;
@@ -1712,7 +1704,7 @@ function renderBolsillos(){
       <div class="disc-cat-hdr" onclick="toggleBolCard(${b.id})">
         <div style="flex:1;min-width:0">
           <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.icon||'💰'} ${b.name}</div>
-          <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${hasMeta?`meta ${fmt(b.metaMensual)}/mes`:'sin meta mensual'}</div>
+          <div style="font-size:11px;color:var(--t3);font-family:'DM Mono',monospace">${hasMeta?`meta ${fmt(b.metaMensual)}/mes · ${b.owner}`:'sin meta mensual'}</div>
         </div>
         <div style="text-align:right;margin-right:8px;flex-shrink:0;font-size:15px;font-weight:600;color:${displayAcum<0?'var(--red)':'var(--t1)'}">${fmtM(displayAcum)}</div>
         <button class="btn btn-xs" onclick="event.stopPropagation();openBolAporte(${b.id},${localBolYear},${localBolMonth})" style="border-color:var(--accent);color:var(--accent);font-weight:600">+</button>
@@ -1752,14 +1744,16 @@ window.removeLogEntry=function(bolId,li){
 window.openAddBolModal=function(){
   document.getElementById('nb-n').value='';
   document.getElementById('nb-m').value='';
+  document.getElementById('nb-owner').value='Nata';
   document.getElementById('addbol-modal-bg').classList.add('open');
   setTimeout(()=>document.getElementById('nb-n').focus(),100);
 };
 window.closeAddBolModal=function(){document.getElementById('addbol-modal-bg')?.classList.remove('open');};
 window.addBol=function(){
   const n=document.getElementById('nb-n')?.value.trim(),m=parseFloat(document.getElementById('nb-m')?.value)||0;
+  const owner=document.getElementById('nb-owner')?.value||'Nata';
   if(!n)return;
-  S.bolsillos.push({id:S.nextId++,name:n,icon:'💰',metaMensual:m,acumulado:0,color:'accent',log:[],split:'50-50',manual:true});
+  S.bolsillos.push({id:S.nextId++,name:n,icon:'💰',metaMensual:m,acumulado:0,color:'accent',log:[],owner,manual:true});
   document.getElementById('nb-n').value='';document.getElementById('nb-m').value='';syncR();
   closeAddBolModal();
 };
@@ -1785,7 +1779,7 @@ window.openBolAporte=function(bolId,targetYear,targetMonth,presetQuien,forceApor
   tipoWrap.style.display=bolApForce?'none':'block';
   document.getElementById('bolap-tipo').value='aporte';
   document.getElementById('bolap-m').value='';
-  document.getElementById('bolap-q').value=presetQuien||'';
+  document.getElementById('bolap-q').value=presetQuien||b.owner||'';
   document.getElementById('bolap-n').value='';
   document.getElementById('bolap-photo-url').value='';
   document.getElementById('bolap-photo-label').textContent='Adjuntar foto';
