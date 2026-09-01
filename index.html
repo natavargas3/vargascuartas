@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Vargas Cuartas · Finanzas</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -579,15 +582,15 @@ a{color:var(--accent);text-decoration:none}
 
     <div style="height:1px;background:var(--b1);margin:16px 0"></div>
 
-    <!-- Toggle anual -->
+    <!-- Toggle extra -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
       <div style="flex:1;padding-right:16px">
-        <div style="font-size:14px;font-weight:500;margin-bottom:2px">¿Es anual?</div>
-        <div style="font-size:11px;color:var(--t3);line-height:1.5">Apagado = se repite cada mes. Prendido = se paga una vez al año, queda como pagado hasta el siguiente año y el gasto va en el mes que se pague.</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:2px">¿Es extra?</div>
+        <div style="font-size:11px;color:var(--t3);line-height:1.5">Apagado = cuenta dentro del presupuesto mensual. Prendido = es un gasto que no se repite cada mes; no cuenta en el presupuesto mensual, se registra el mes que lo pagues.</div>
       </div>
-      <div class="toggle-wrap" onclick="toggleModal('m-anual')">
-        <div class="toggle" id="m-anual-toggle"></div>
-        <input type="hidden" id="m-anual" value="0">
+      <div class="toggle-wrap" onclick="toggleModal('m-extra')">
+        <div class="toggle" id="m-extra-toggle"></div>
+        <input type="hidden" id="m-extra" value="0">
       </div>
     </div>
 
@@ -797,6 +800,16 @@ onValue(dbRef,snap=>{
         S.bolsillos.push({id:S.nextId++,name:'Provisión vehicular',icon:'🚙',metaMensual:200000,acumulado:0,color:'blue',log:[],split:'50-50',manual:true});
       }
       S.bolsillosProvisionMigrated=true;
+    }
+    // Simplifica "anual" a "extra": ya no se rastrea pendiente/pagado por año, solo si cuenta o no en el presupuesto mensual
+    if(!S.itemAnualToExtraMigrated){
+      (S.cats||[]).forEach(cat=>{
+        (cat.items||[]).forEach(item=>{
+          if(item.anual){item.extra=true;}
+          delete item.anual;
+        });
+      });
+      S.itemAnualToExtraMigrated=true;
     }
     // Cada bolsillo ahora tiene un dueño único (ya no se reparte 50/50 entre los dos)
     if(!S.bolsillosOwnerMigrated){
@@ -1349,12 +1362,8 @@ function renderReporte(){
   (S.cats||[]).forEach(cat=>{
     if(cat.isPrestamos)return;
     (cat.items||[]).forEach(item=>{
-      // Annual items: only count budget/paid in the month they were paid
-      if(item.anual){
-        const paid=getItemPaid(item.id);
-        if(paid.entries.length>0){totalPaid+=paid.total;excTotal+=item.budget-paid.total;}
-        return;
-      }
+      // Extra: fuera del presupuesto mensual, no afecta pagado/pendiente/excedente
+      if(item.extra)return;
       totalBudget+=item.budget;
       const paid=getItemPaid(item.id);
       if(paid.entries.length>0){totalPaid+=paid.total;excTotal+=item.budget-paid.total;}
@@ -1371,20 +1380,15 @@ function renderReporte(){
     if(cat.id==='nata-personal'&&getCurrentUser()==='Santiago')return;
     let catBudget=0,catPaid=0;
     const itemsHtml=(cat.items||[]).map(item=>{
-      if(!item.anual)catBudget+=item.budget;
-      const paid=getItemPaid(item.id);catPaid+=paid.total;
+      const paid=getItemPaid(item.id);
+      const isExtra=item.extra||false;
+      if(!isExtra){catBudget+=item.budget;catPaid+=paid.total;}
       const hasPaid=paid.entries.length>0;
-      const isAnual=item.anual||false;
-      // For annual: check if paid this year
-      const paidThisYear=isAnual&&Object.entries(S.reportes||{}).some(([k,rep])=>{
-        const[y]=k.split('-').map(Number);
-        return y===localRepYear&&getPaidFromRep(item.id,rep).entries.length>0;
-      });
       const isLoan=item.split==='nata100'||item.split==='santi100';
       const exc=item.budget-paid.total;
       const excHtml=(hasPaid&&!isLoan)?`<span class="${exc>=0?'exc-pos':'exc-neg'}">${fmt(exc)}</span>`:'';
       const splitLabel=item.split==='50-50'?'50/50':item.split==='70-30'?'70% Santi':item.split==='nata'?'Nata':item.split==='nata100'?'Nata presta':item.split==='santi100'?'Santi presta':'Santi';
-      const anualBadge=isAnual?`<span class="bdg ${paidThisYear?'bgrn':'byel'}" style="font-size:9px;vertical-align:middle">${paidThisYear?'✓ pagado '+localRepYear:'anual · pendiente'}</span>`:'';
+      const extraBadge=isExtra?`<span class="bdg byel" style="font-size:9px;vertical-align:middle">extra</span>`:'';
 
       const entriesHtml=paid.entries.length>0?`<div style="margin-bottom:10px">${paid.entries.map((e,ei)=>`
         <div class="entry-item">
@@ -1408,7 +1412,7 @@ function renderReporte(){
       return`<div class="rep-item">
         <div class="rep-main" onclick="toggleD('rd-${item.id}')">
           <div class="chk ${hasPaid?'paid':''}"></div>
-          <div><div style="font-size:15px">${item.name} ${excHtml} ${anualBadge}</div><div style="font-size:12px;color:var(--t3)">${isLoan?(hasPaid?fmt(paid.total)+' · ':''):isAnual?'anual · ':fmt(item.budget)+' · '}${splitLabel}</div></div>
+          <div><div style="font-size:15px">${item.name} ${excHtml} ${extraBadge}</div><div style="font-size:12px;color:var(--t3)">${isLoan?(hasPaid?fmt(paid.total)+' · ':''):isExtra?'extra · ':fmt(item.budget)+' · '}${splitLabel}</div></div>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--t3)" stroke-width="1.5"><path d="M6 4l4 4-4 4"/></svg>
         </div>
         <div class="rep-detail" id="rd-${item.id}">
@@ -1866,7 +1870,7 @@ function renderConfig(){
     html+=(cat.items||[]).map((item,ii)=>{
       const splitLabel={'50-50':'50/50','70-30':'70% Santi','nata100':'Nata 100%','santi100':'Santi 100%','nata':'Solo Nata','santi':'Solo Santi'}[item.split]||item.split;
       const tags=[];
-      if(item.anual)tags.push('<span class="bdg byel" style="font-size:9px">anual</span>');
+      if(item.extra)tags.push('<span class="bdg byel" style="font-size:9px">extra</span>');
       return`<div class="cfg-item">
         <div class="cfg-item-row">
           <div style="flex:1;min-width:0">
@@ -2029,9 +2033,9 @@ window.openModal=function(catRef,itemRef){
   document.getElementById('m-split').value=item?.split||defaultSplit;
 
   // Toggles
-  const anualOn=item?.anual||false;
-  document.getElementById('m-anual').value=anualOn?'1':'0';
-  document.getElementById('m-anual-toggle').parentElement.classList.toggle('on',anualOn);
+  const extraOn=item?.extra||false;
+  document.getElementById('m-extra').value=extraOn?'1':'0';
+  document.getElementById('m-extra-toggle').parentElement.classList.toggle('on',extraOn);
 
   updateModalHints();
   document.getElementById('modal-bg').classList.add('open');
@@ -2044,17 +2048,17 @@ window.saveModal=function(){
   const n=document.getElementById('m-n').value.trim();
   const m=parseFloat(document.getElementById('m-m').value)||0;
   const split=document.getElementById('m-split').value;
-  const anual=document.getElementById('m-anual').value==='1';
+  const extra=document.getElementById('m-extra').value==='1';
   if(!n)return;
 
   if(modalItemIdx>=0){
     // Editing existing
     const item=S.cats[modalCatIdx].items[modalItemIdx];
-    item.name=n;item.budget=m;item.split=split;item.anual=anual;
+    item.name=n;item.budget=m;item.split=split;item.extra=extra;
     logActivity(`editó el ítem "${n}"`);
   }else{
     // New item — always custom (can be deleted)
-    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,anual,custom:true});
+    S.cats[modalCatIdx].items.push({id:S.nextId++,name:n,budget:m,split,extra,custom:true});
     logActivity(`agregó el ítem "${n}" en ${S.cats[modalCatIdx].name}`);
   }
   closeModal();syncR();
