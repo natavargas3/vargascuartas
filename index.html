@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -23,9 +25,9 @@
   --r:16px;--rs:12px;--rx:8px;--nav:64px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.5;height:100%;overflow:hidden}
-.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
-.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--nav)+24px)}
+html,body{background:var(--bg);color:var(--t1);font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.5;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:pan-y}
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none}
+.main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:calc(var(--nav)+24px)}
 .page{display:none;padding:20px 16px;animation:fi .18s ease}
 .page.active{display:block}
 @keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -1832,8 +1834,14 @@ function renderCasa51(){
     return`<div class="deuda-row"><div class="prio-dot ${done?'done':i===0?'act':''}">${done?'✓':i+1}</div><div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="font-size:14px">${d.name} ${done?'<span class="bdg bgrn">pagado</span>':i===0?'<span class="bdg byel">en curso</span>':''}</span><span style="font-size:13px;font-family:'DM Mono',monospace">${fmtM(rest)}</span></div><div class="bar" style="height:5px"><div class="bar-f ba" style="width:${p}%"></div></div><div style="font-size:11px;color:var(--t3);margin-top:4px">${fmtM(pag)} pagado · total ${fmtM(d.total)}</div></div></div>`;
   }).join('');
   const hist=S.casaPagos||[];
-  document.getElementById('casa-hist').innerHTML=hist.length===0?'<div class="empty">Sin pagos aún.</div>':hist.slice().reverse().map(p=>`<div class="hst"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:14px;font-weight:500">${p.desc}</span><span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--accent)">${fmt(p.monto)}</span></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="bdg ${p.quien==='Nata'?'bn':'bs'}">${p.quien}</span><span class="bdg byel">${p.deuda}</span><span style="font-size:11px;color:var(--t3)">${p.fecha}</span>${p.nota?`<span style="font-size:12px;color:var(--t3)">${p.nota}</span>`:''}${p.photoUrl?`<a href="${p.photoUrl}" target="_blank">📎 comprobante</a>`:''}</div></div>`).join('');
+  document.getElementById('casa-hist').innerHTML=hist.length===0?'<div class="empty">Sin pagos aún.</div>':hist.map((p,pi)=>({...p,actualIdx:pi})).reverse().map(p=>`<div class="hst"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:14px;font-weight:500">${p.desc}</span><span style="font-weight:600;font-family:'DM Mono',monospace;color:var(--accent)">${fmt(p.monto)}</span></div><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="bdg ${p.quien==='Nata'?'bn':'bs'}">${p.quien}</span><span class="bdg byel">${p.deuda}</span><span style="font-size:11px;color:var(--t3)">${p.fecha}</span>${p.nota?`<span style="font-size:12px;color:var(--t3)">${p.nota}</span>`:''}${p.photoUrl?`<a href="${p.photoUrl}" target="_blank">📎 comprobante</a>`:''}<button class="btn-danger" onclick="removeCasaPago(${p.actualIdx})">× eliminar</button></div></div>`).join('');
 }
+
+window.removeCasaPago=function(idx){
+  if(!S.casaPagos)return;
+  S.casaPagos.splice(idx,1);
+  syncR();
+};
 
 window.addCasaPago=function(){
   const desc=document.getElementById('cp-d')?.value.trim();
