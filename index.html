@@ -8,7 +8,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="app-build" content="20260928a">
+<meta name="app-build" content="20260928b">
 <title>Vargas Cuartas · Finanzas</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -233,7 +233,7 @@ a{color:var(--accent);text-decoration:none}
 <script>
 // Auto-actualización: revisa si hay una versión nueva publicada y recarga sola (evita quedarse con caché vieja en iOS, sobre todo en la app agregada a la pantalla de inicio)
 (function(){
-  var CURRENT_BUILD='20260928a';
+  var CURRENT_BUILD='20260928b';
   if(new URLSearchParams(location.search).has('v'))return; // ya venimos de un reload forzado
   fetch(location.pathname,{cache:'no-store'}).then(function(r){return r.text();}).then(function(html){
     var m=html.match(/<meta name="app-build" content="([^"]+)"/);
@@ -467,7 +467,7 @@ a{color:var(--accent);text-decoration:none}
 <div class="modal-bg" id="saldar-modal-bg">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-ttl">Marcar como saldado</div>
+    <div class="modal-ttl" id="saldar-modal-ttl">Marcar como saldado</div>
     <div class="fg" style="margin-bottom:16px">
       <div class="fl">nota</div>
       <input type="text" id="saldar-n" placeholder="ej: transferencia Nequi...">
@@ -1291,29 +1291,25 @@ window.marcarSaldado=function(){
 };
 window.desmarcarSaldado=function(){
   const key=`${localRepYear}-${localRepMonth}`;
-  if(S.saldos&&S.saldos[key])delete S.saldos[key];
+  const s=S.saldos&&S.saldos[key];
+  if(s){
+    if(s.deuda&&s.monto){
+      if(s.deudaType==='abono')S.deuNataPagado=Math.max(0,(S.deuNataPagado||0)-s.monto);
+      else if(s.deudaType==='incremento')S.deudaNataSanti=Math.max(0,(S.deudaNataSanti||70000000)-s.monto);
+    }
+    delete S.saldos[key];
+  }
   syncR();
 };
-window.pasarAPrestamos=function(){
+// Balance mensual del reporte aplicado directamente a la deuda grande Nata -> Santiago (en vez de un préstamo aparte)
+window.aplicarADeuda=function(){
   const rep=getRep();
   const bal=computeBalance(rep);
   if(Math.abs(bal.net)<1000)return;
-  const prestCat=S.cats.find(c=>c.isPrestamos);
-  if(!prestCat)return;
-  const item=bal.net>0?prestCat.items.find(it=>it.split==='nata100'):prestCat.items.find(it=>it.split==='santi100');
-  if(!item)return;
   const monto=Math.round(Math.abs(bal.net));
-  const quien=item.split==='nata100'?'Nata':'Santiago';
-  if(!confirm(`¿Pasar ${fmt(monto)} a préstamos (${item.name}) y marcar ${MONTHS[localRepMonth]} como saldado?`))return;
-  if(!rep.items)rep.items={};
-  const k=`i${item.id}`;
-  if(!rep.items[k])rep.items[k]={entries:[]};
-  rep.items[k].entries.push({monto,quien,nota:`Balance de ${MONTHS[localRepMonth]} trasladado a préstamo`,photoUrl:'',fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short'})});
-  logActivity(`pasó el balance de ${MONTHS[localRepMonth]} (${fmt(monto)}) a préstamos`);
-  const mkkey=`${localRepYear}-${localRepMonth}`;
-  if(!S.saldos)S.saldos={};
-  S.saldos[mkkey]={fecha:new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}),prestamo:true};
-  syncR();
+  // bal.net>0: Santiago le debe a Nata -> abona (resta) a la deuda. bal.net<0: Nata le debe a Santiago -> aumenta la deuda.
+  const type=bal.net>0?'abono':'incremento';
+  openSaldarModal({type,monto});
 };
 
 // AHORROS: balance de aporte mensual por bolsillo, independiente del balance general
@@ -1349,8 +1345,10 @@ function computeBolArrears(b){
 }
 
 let saldarCtx=null;
+const SALDAR_TITLES={reporte:'Marcar como saldado',abono:'Abonar a deuda',incremento:'Agregar a deuda'};
 window.openSaldarModal=function(ctx){
   saldarCtx=ctx;
+  document.getElementById('saldar-modal-ttl').textContent=SALDAR_TITLES[ctx?.type]||'Confirmar';
   document.getElementById('saldar-n').value='';
   document.getElementById('saldar-photo-url').value='';
   document.getElementById('saldar-photo-label').textContent='Adjuntar foto';
@@ -1366,6 +1364,18 @@ window.confirmSaldar=function(){
     if(!S.saldos)S.saldos={};
     S.saldos[key]=info;
     logActivity(`marcó ${MONTHS[localRepMonth]} como saldado`);
+  }else if(saldarCtx?.type==='abono'||saldarCtx?.type==='incremento'){
+    const monto=saldarCtx.monto||0;
+    if(saldarCtx.type==='abono'){
+      S.deuNataPagado=(S.deuNataPagado||0)+monto;
+      logActivity(`abonó ${fmt(monto)} a la deuda con Santiago (balance de ${MONTHS[localRepMonth]})`);
+    }else{
+      S.deudaNataSanti=(S.deudaNataSanti||70000000)+monto;
+      logActivity(`agregó ${fmt(monto)} a la deuda con Santiago (balance de ${MONTHS[localRepMonth]})`);
+    }
+    const key=`${localRepYear}-${localRepMonth}`;
+    if(!S.saldos)S.saldos={};
+    S.saldos[key]={...info,deuda:true,deudaType:saldarCtx.type,monto};
   }
   closeSaldarModal();
   syncR();
@@ -1463,7 +1473,7 @@ function renderReporte(){
   const saldado=S.saldos&&S.saldos[mkkey];
   const anyPaid=bal.natPaid>0||bal.sanPaid>0;
   let heroMsg='',heroCls='bal-none';
-  if(saldado){heroMsg=`${saldado.prestamo?'Pasado a préstamos el':'Saldado el'} ${saldado.fecha||saldado} ✓${saldado.nota?'\n'+saldado.nota:''}`;heroCls='bal-even';}
+  if(saldado){const saldadoLabel=saldado.deuda?(saldado.deudaType==='abono'?'Abonado a la deuda el':'Agregado a la deuda el'):saldado.prestamo?'Pasado a préstamos el':'Saldado el';heroMsg=`${saldadoLabel} ${saldado.fecha||saldado} ✓${saldado.nota?'\n'+saldado.nota:''}`;heroCls='bal-even';}
   else if(!anyPaid){heroMsg='Sin pagos registrados aún.';heroCls='bal-none';}
   else if(Math.abs(bal.net)<1000){heroMsg='Están parejos ✓';heroCls='bal-even';}
   else if(bal.net>0){heroMsg=`Santiago le debe a Nata\n${fmt(bal.net)}`;heroCls='bal-owe';}
@@ -1513,7 +1523,7 @@ function renderReporte(){
         <div class="bal-col-name" style="margin-top:4px">por categoría</div>
         ${catBalHtml||'<div style="font-size:12px;color:var(--t3)">Sin datos este mes.</div>'}
       </div>
-      ${showSaldar?`<div style="display:flex;gap:8px"><button class="btn btn-full" onclick="marcarSaldado()">✓ Marcar como saldado</button><button class="btn btn-full" onclick="pasarAPrestamos()">→ Pasar a préstamos</button></div>`:saldado?`<button class="btn btn-full" style="color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
+      ${showSaldar?`<div style="display:flex;gap:8px"><button class="btn btn-full" onclick="marcarSaldado()">✓ Marcar como saldado</button><button class="btn btn-full" onclick="aplicarADeuda()">→ ${bal.net>0?'Abonar':'Agregar'} a deuda</button></div>`:saldado?`<button class="btn btn-full" style="color:var(--t3)" onclick="desmarcarSaldado()">↩ Desmarcar saldado</button>`:''}
     </div>`;
 }
 
