@@ -1839,7 +1839,11 @@ function renderCasa51(){
 
 window.removeCasaPago=function(idx){
   if(!S.casaPagos)return;
+  const p=S.casaPagos[idx];
+  if(!p)return;
+  if(!confirm(`¿Eliminar este pago de ${fmt(p.monto)} (${p.deuda})? Esta acción no se puede deshacer.`))return;
   S.casaPagos.splice(idx,1);
+  logActivity(`eliminó pago de Casa 51 a ${p.deuda}: ${fmt(p.monto)}`);
   syncR();
 };
 
